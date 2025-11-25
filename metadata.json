@@ -1,0 +1,5 @@
+{
+  "name": "Ransom Note Studio",
+  "description": "A collage text generator that creates 'ransom note' style cutouts for video editing presets. Features AI-powered phrase generation and exportable designs.",
+  "requestFramePermissions": []
+}
