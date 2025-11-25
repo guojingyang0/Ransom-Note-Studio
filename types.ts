@@ -13,7 +13,7 @@ export interface CharacterStyle {
   borderWidth: number;
   borderColor: string;
   zIndex: number;
-  texture?: 'grain' | 'paper' | 'none';
+  texture?: 'grain' | 'paper' | 'none' | 'fabric' | 'grunge' | 'concrete';
   // New: For irregular shapes
   shapePoints?: {x: number, y: number}[]; 
   packId?: string; // To identify which renderer to use
@@ -46,7 +46,7 @@ export interface PresetConfig {
   chaosLevel: number; 
   fontVariance: number; 
   colorVibrancy: 'bw' | 'retro' | 'neon' | 'pastel';
-  textureMode: 'none' | 'grain' | 'paper' | 'mixed';
+  textureMode: 'none' | 'grain' | 'paper' | 'mixed' | 'fabric' | 'grunge' | 'concrete';
   
   // AI Mode Settings (Generated)
   customPalette: ColorPair[];
@@ -58,7 +58,7 @@ export interface GeneratedStyle {
   palette: ColorPair[];
   chaosLevel: number;
   fontVariance: number;
-  textureMode: 'none' | 'grain' | 'paper' | 'mixed';
+  textureMode: 'none' | 'grain' | 'paper' | 'mixed' | 'fabric' | 'grunge' | 'concrete';
 }
 
 export type Language = 'en' | 'zh';

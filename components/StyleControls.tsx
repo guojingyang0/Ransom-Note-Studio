@@ -139,11 +139,11 @@ const StyleControls: React.FC<StyleControlsProps> = ({
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">{t.texture}</label>
               <div className="grid grid-cols-4 gap-2">
-                {(['none', 'grain', 'paper', 'mixed'] as const).map((mode) => (
+                {(['none', 'grain', 'paper', 'fabric', 'grunge', 'concrete', 'mixed'] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => handlePresetChange('textureMode', mode)}
-                    className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center ${
+                    className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center break-words ${
                       config.textureMode === mode 
                         ? 'border-blue-400 bg-gray-700 text-blue-400' 
                         : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-500'
@@ -347,11 +347,11 @@ const StyleControls: React.FC<StyleControlsProps> = ({
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">{t.texture}</label>
                   <div className="grid grid-cols-4 gap-2">
-                    {(['none', 'grain', 'paper', 'mixed'] as const).map((mode) => (
+                    {(['none', 'grain', 'paper', 'fabric', 'grunge', 'concrete', 'mixed'] as const).map((mode) => (
                       <button
                         key={mode}
                         onClick={() => handleParamChange('textureMode', mode)}
-                        className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center ${
+                        className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center break-words ${
                           config.textureMode === mode 
                             ? 'border-purple-400 bg-gray-700 text-purple-400' 
                             : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-500'

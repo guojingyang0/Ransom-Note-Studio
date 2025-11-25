@@ -170,7 +170,10 @@ export const TRANSLATIONS = {
       none: "None",
       grain: "Grain",
       paper: "Paper",
-      mixed: "Mixed"
+      mixed: "Mixed",
+      fabric: "Fabric",
+      grunge: "Grunge",
+      concrete: "Concrete"
     },
     footer: "Drag text characters to rearrange (Visual only) • Characters rendered using CSS & Google Fonts • Export uses HTML5 Canvas",
     startTyping: "Start typing to generate collage..."
@@ -226,7 +229,10 @@ export const TRANSLATIONS = {
       none: "无",
       grain: "颗粒",
       paper: "纸张",
-      mixed: "混合"
+      mixed: "混合",
+      fabric: "布料",
+      grunge: "脏迹",
+      concrete: "水泥"
     },
     footer: "支持拖拽字符 • 使用谷歌字体渲染 • 导出基于 HTML5 Canvas",
     startTyping: "开始输入以生成拼贴画..."

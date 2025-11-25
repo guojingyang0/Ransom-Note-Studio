@@ -31,7 +31,7 @@ export default async function handler(req) {
     1. Analyze the visual style, brand colors, or mood implied by the prompt.
     2. Generate a list of 4-6 specific Color Pairs (background + text color) in HEX format that strictly match this aesthetic. 
     3. Determine appropriate 'chaosLevel' (0=neat, 100=messy) and 'fontVariance' (0=uniform, 100=mixed).
-    4. Select a 'textureMode' that fits the vibe: 'grain', 'paper', 'none', or 'mixed'.
+    4. Select a 'textureMode' that fits the vibe: 'grain', 'paper', 'none', 'mixed', 'fabric', 'grunge', or 'concrete'.
     ${includeText ? '5. Generate a short, punchy phrase (max 6 words) fitting this theme.' : '5. Do NOT generate text, return null for text.'}
 
     Return JSON.
@@ -50,7 +50,7 @@ export default async function handler(req) {
             mood: { type: "STRING" },
             chaosLevel: { type: "INTEGER" },
             fontVariance: { type: "INTEGER" },
-            textureMode: { type: "STRING", enum: ['none', 'grain', 'paper', 'mixed'] },
+            textureMode: { type: "STRING", enum: ['none', 'grain', 'paper', 'mixed', 'fabric', 'grunge', 'concrete'] },
             palette: {
               type: "ARRAY",
               items: {

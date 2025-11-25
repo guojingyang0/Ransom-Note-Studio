@@ -131,7 +131,7 @@ export default function App() {
     let borderRadius = '';
     let borderWidth = 0;
     let bgCss = undefined;
-    let texture: 'grain' | 'paper' | 'none' = 'none';
+    let texture: 'grain' | 'paper' | 'none' | 'fabric' | 'grunge' | 'concrete' = 'none';
     let packId = undefined;
     let bgType = undefined;
     let bgPatternColors = undefined;
@@ -204,12 +204,11 @@ export default function App() {
         fontFamily = FONTS[randomInt(0, fontIndexLimit - 1)];
 
         if (config.textureMode === 'mixed') {
-           const r = random(0, 1);
-           if (r < 0.4) texture = 'grain';
-           else if (r < 0.8) texture = 'paper';
-           else texture = 'none';
+           const modes = ['grain', 'paper', 'fabric', 'grunge', 'concrete', 'none'];
+           const r = randomInt(0, modes.length - 1);
+           texture = modes[r] as any;
         } else {
-           texture = config.textureMode as 'grain' | 'paper' | 'none';
+           texture = config.textureMode as 'grain' | 'paper' | 'none' | 'fabric' | 'grunge' | 'concrete';
         }
 
         rotation = random(-maxRot, maxRot);
@@ -292,7 +291,7 @@ export default function App() {
     }
   };
 
-  const createTexturePattern = (ctx: CanvasRenderingContext2D, type: 'grain' | 'paper') => {
+  const createTexturePattern = (ctx: CanvasRenderingContext2D, type: 'grain' | 'paper' | 'fabric' | 'grunge' | 'concrete') => {
     const size = 256;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -322,6 +321,45 @@ export default function App() {
            data[i + 3] = 0;
          }
        }
+    } else if (type === 'fabric') {
+        // Cross-hatch noise
+        for (let i = 0; i < data.length; i += 4) {
+            data[i+3] = 0;
+        }
+        // Manually draw lines instead of noise pixels for better effect
+        pCtx.putImageData(imageData, 0, 0);
+        pCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        for(let i=0; i<size; i+=3) {
+            pCtx.fillRect(i, 0, 1, size); // Vertical thread
+            pCtx.fillRect(0, i, size, 1); // Horizontal thread
+        }
+        return ctx.createPattern(canvas, 'repeat');
+
+    } else if (type === 'grunge') {
+        // Splotches
+         for (let i = 0; i < data.length; i += 4) {
+            data[i+3] = 0;
+         }
+         pCtx.putImageData(imageData, 0, 0);
+         for(let i=0; i<30; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const r = Math.random() * 40 + 5;
+            pCtx.beginPath(); 
+            pCtx.arc(x,y,r,0,Math.PI*2); 
+            pCtx.fillStyle=`rgba(0,0,0,${Math.random() * 0.1})`; 
+            pCtx.fill();
+         }
+         return ctx.createPattern(canvas, 'repeat');
+         
+    } else if (type === 'concrete') {
+        for (let i = 0; i < data.length; i += 4) {
+            const val = 100 + Math.random() * 50; // grey base
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+            data[i+3] = 40 + Math.random() * 20; 
+        }
     }
 
     pCtx.putImageData(imageData, 0, 0);
@@ -606,6 +644,9 @@ export default function App() {
     
     const grainPattern = createTexturePattern(ctx, 'grain');
     const paperPattern = createTexturePattern(ctx, 'paper');
+    const fabricPattern = createTexturePattern(ctx, 'fabric');
+    const grungePattern = createTexturePattern(ctx, 'grunge');
+    const concretePattern = createTexturePattern(ctx, 'concrete');
 
     const startX = 50;
     let startY = 150;
@@ -678,17 +719,20 @@ export default function App() {
       ctx.shadowColor = "transparent";
 
       // Texture Overlay
-      if (style.texture === 'grain' && grainPattern) {
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.fillStyle = grainPattern;
-          ctx.globalAlpha = 0.2;
-          ctx.fillRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
-          ctx.globalAlpha = 1.0;
-          ctx.globalCompositeOperation = 'source-over';
-      } else if (style.texture === 'paper' && paperPattern) {
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.fillStyle = paperPattern;
-          ctx.globalAlpha = 0.4;
+      let texturePattern = null;
+      let alpha = 1.0;
+      let blendMode: GlobalCompositeOperation = 'multiply';
+
+      if (style.texture === 'grain') { texturePattern = grainPattern; alpha = 0.2; }
+      else if (style.texture === 'paper') { texturePattern = paperPattern; alpha = 0.4; }
+      else if (style.texture === 'fabric') { texturePattern = fabricPattern; alpha = 0.3; }
+      else if (style.texture === 'grunge') { texturePattern = grungePattern; alpha = 0.5; }
+      else if (style.texture === 'concrete') { texturePattern = concretePattern; alpha = 0.3; }
+
+      if (texturePattern) {
+          ctx.globalCompositeOperation = blendMode;
+          ctx.fillStyle = texturePattern;
+          ctx.globalAlpha = alpha;
           ctx.fillRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
           ctx.globalAlpha = 1.0;
           ctx.globalCompositeOperation = 'source-over';
@@ -755,6 +799,9 @@ export default function App() {
   const getTextureClass = (tex?: string) => {
     if (tex === 'grain') return "mix-blend-multiply opacity-20 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]";
     if (tex === 'paper') return "mix-blend-multiply opacity-40 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]";
+    if (tex === 'fabric') return "mix-blend-multiply opacity-30 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/canvas-orange.png')]";
+    if (tex === 'grunge') return "mix-blend-multiply opacity-50 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/black-felt.png')]";
+    if (tex === 'concrete') return "mix-blend-multiply opacity-30 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/concrete-wall.png')]";
     return "";
   };
 
