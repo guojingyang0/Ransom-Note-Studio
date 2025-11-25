@@ -22,14 +22,13 @@ export default async function handler(req) {
     }
 
     // 2. Construct the Gemini API Payload manually (REST API format)
-    // We use raw strings for types to avoid needing the @google/genai package dependency in the serverless function
     const systemPrompt = `
     You are a visual design assistant for a 'ransom note' style text generator.
     User Prompt: "${promptInput}"
     
     Task:
     1. Analyze the visual style, brand colors, or mood implied by the prompt.
-    2. Generate a list of 4-6 specific Color Pairs (background + text color) in HEX format that strictly match this aesthetic. 
+    2. Generate a list of specific Color Pairs (bg + text) in HEX format. The number of pairs is up to you based on the best aesthetic fit (no fixed limit, usually 3-8 pairs).
     3. Determine appropriate 'chaosLevel' (0=neat, 100=messy) and 'fontVariance' (0=uniform, 100=mixed).
     4. Select a 'textureMode' that fits the vibe: 'grain', 'paper', 'none', 'mixed', 'fabric', 'grunge', or 'concrete'.
     ${includeText ? '5. Generate a short, punchy phrase (max 6 words) fitting this theme.' : '5. Do NOT generate text, return null for text.'}
