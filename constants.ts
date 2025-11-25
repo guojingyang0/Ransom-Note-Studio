@@ -1,4 +1,6 @@
 
+import { StylePack } from './types';
+
 export const FONTS = [
   'Anton',
   'Bangers',
@@ -16,6 +18,49 @@ export const FONTS = [
   'Indie Flower',
   'Monoton'
 ];
+
+export const STYLE_PACKS: Record<string, StylePack> = {
+  'redacted': {
+    id: 'redacted',
+    label: 'Redacted',
+    description: 'Top Secret classified documents style.',
+    fontOptions: ['Courier Prime', 'Special Elite', 'VT323'],
+    colors: [{ bg: '#111111', text: '#F0F0F0' }],
+    bgType: 'solid',
+    shape: 'rect'
+  },
+  'industrial': {
+    id: 'industrial',
+    label: 'Industrial',
+    description: 'Hazard stripes and brutalist typography.',
+    fontOptions: ['Black Ops One', 'Anton', 'Rubik Glitch'],
+    colors: [{ bg: '#FACC15', text: '#000000' }], // Yellow/Black
+    bgType: 'stripes',
+    shape: 'geometric'
+  },
+  'scrapbook': {
+    id: 'scrapbook',
+    label: 'Scrapbook',
+    description: 'Torn paper edges and handwritten notes.',
+    fontOptions: ['Indie Flower', 'Gloria Hallelujah', 'Permanent Marker'],
+    colors: [
+      { bg: '#fdf6e3', text: '#2c3e50' }, // Off-white
+      { bg: '#eee8d5', text: '#2c3e50' },
+      { bg: '#e0dcd3', text: '#000000' }
+    ],
+    bgType: 'noise',
+    shape: 'jagged'
+  },
+  'acid': {
+    id: 'acid',
+    label: 'Acid Rave',
+    description: 'Trippy gradients and bold shapes.',
+    fontOptions: ['Rubik Glitch', 'Monoton', 'Righteous'],
+    colors: [{ bg: '#FF00FF', text: '#FFFF00' }], // Neon
+    bgType: 'gradient',
+    shape: 'circle' // or geometric
+  }
+};
 
 export const PALETTES = {
   bw: [
@@ -61,6 +106,7 @@ export const TRANSLATIONS = {
     // Tabs
     tabPreset: "Manual Presets",
     tabAI: "AI Match",
+    tabPack: "Style Packs",
     
     // Preset Mode
     styleSettings: "Manual Controls",
@@ -71,6 +117,10 @@ export const TRANSLATIONS = {
     fontVariance: "Font Variance",
     reshuffle: "Re-Shuffle Layout",
     
+    // Pack Mode
+    packDesc: "Choose a curated design pack. Fonts, shapes, and textures are unified.",
+    selectPack: "Select Pack",
+
     // AI Mode
     aiDesc: "Describe a brand, movie, or aesthetic. AI will generate the colors and vibe.",
     aiPromptLabel: "Style / Brand Prompt",
@@ -105,6 +155,7 @@ export const TRANSLATIONS = {
     // Tabs
     tabPreset: "手动预设",
     tabAI: "AI 定制",
+    tabPack: "字族风格",
     
     // Preset Mode
     styleSettings: "参数调节",
@@ -115,6 +166,10 @@ export const TRANSLATIONS = {
     fontVariance: "字体差异",
     reshuffle: "重新随机布局",
     
+    // Pack Mode
+    packDesc: "选择设计师精选字族。字体、形状和纹理将保持风格统一。",
+    selectPack: "选择字族",
+
     // AI Mode
     aiDesc: "描述一个品牌、电影或审美风格。AI 将自动提取特征色和氛围。",
     aiPromptLabel: "风格 / 品牌提示词",

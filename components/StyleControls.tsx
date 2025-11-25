@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { PresetConfig, Language } from '../types';
-import { TRANSLATIONS } from '../constants';
+import { TRANSLATIONS, STYLE_PACKS } from '../constants';
 
 interface StyleControlsProps {
   config: PresetConfig;
@@ -26,14 +26,18 @@ const StyleControls: React.FC<StyleControlsProps> = ({
   const [aiPrompt, setAiPrompt] = useState('');
   const [includeText, setIncludeText] = useState(false);
 
-  // Switch between 'preset' and 'ai' modes
-  const handleModeSwitch = (mode: 'preset' | 'ai') => {
+  // Switch between modes
+  const handleModeSwitch = (mode: 'preset' | 'ai' | 'pack') => {
     setConfig(prev => ({ ...prev, mode }));
   };
 
   const handlePresetChange = <K extends keyof PresetConfig>(key: K, value: PresetConfig[K]) => {
     setConfig(prev => ({ ...prev, [key]: value, mode: 'preset' }));
   };
+
+  const handlePackSelect = (packId: string) => {
+    setConfig(prev => ({ ...prev, mode: 'pack', selectedPackId: packId }));
+  }
 
   const handleAiSubmit = () => {
     if (!aiPrompt.trim()) return;
@@ -66,7 +70,7 @@ const StyleControls: React.FC<StyleControlsProps> = ({
       <div className="flex border-b border-gray-700">
         <button
           onClick={() => handleModeSwitch('preset')}
-          className={`flex-1 py-3 text-sm font-bold transition-colors ${
+          className={`flex-1 py-3 text-xs md:text-sm font-bold transition-colors ${
             config.mode === 'preset' 
               ? 'bg-gray-800 text-yellow-400 border-b-2 border-yellow-400' 
               : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
@@ -75,8 +79,18 @@ const StyleControls: React.FC<StyleControlsProps> = ({
           {t.tabPreset}
         </button>
         <button
+          onClick={() => handleModeSwitch('pack')}
+          className={`flex-1 py-3 text-xs md:text-sm font-bold transition-colors ${
+            config.mode === 'pack' 
+              ? 'bg-gray-800 text-green-400 border-b-2 border-green-400' 
+              : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+          }`}
+        >
+          {t.tabPack}
+        </button>
+        <button
           onClick={() => handleModeSwitch('ai')}
-          className={`flex-1 py-3 text-sm font-bold transition-colors ${
+          className={`flex-1 py-3 text-xs md:text-sm font-bold transition-colors ${
             config.mode === 'ai' 
               ? 'bg-gray-800 text-purple-400 border-b-2 border-purple-400' 
               : 'bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
@@ -175,6 +189,56 @@ const StyleControls: React.FC<StyleControlsProps> = ({
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               {t.reshuffle}
+            </button>
+          </div>
+        )}
+
+        {/* === PACK MODE CONTENT === */}
+        {config.mode === 'pack' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1">{t.selectPack}</h3>
+              <p className="text-gray-400 text-xs">{t.packDesc}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {Object.values(STYLE_PACKS).map((pack) => (
+                <button
+                  key={pack.id}
+                  onClick={() => handlePackSelect(pack.id)}
+                  className={`relative p-3 rounded-lg border-2 text-left transition-all ${
+                    config.selectedPackId === pack.id
+                      ? 'border-green-400 bg-gray-700'
+                      : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className={`font-bold text-sm ${config.selectedPackId === pack.id ? 'text-green-400' : 'text-white'}`}>
+                      {pack.label}
+                    </span>
+                    {config.selectedPackId === pack.id && (
+                       <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-2">{pack.description}</p>
+                  
+                  {/* Preview of styles in pack */}
+                  <div className="flex gap-1">
+                     <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
+                          style={{ background: pack.colors[0].bg, color: pack.colors[0].text }}>A</div>
+                     <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
+                          style={{ background: pack.colors[1] ? pack.colors[1].bg : pack.colors[0].bg, color: pack.colors[1] ? pack.colors[1].text : pack.colors[0].text }}>B</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={onShuffle}
+              className="w-full py-2 mt-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+               {t.reshuffle}
             </button>
           </div>
         )}

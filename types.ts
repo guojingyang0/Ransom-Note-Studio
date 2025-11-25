@@ -4,6 +4,7 @@ export interface CharacterStyle {
   char: string;
   fontFamily: string;
   backgroundColor: string;
+  backgroundCss?: string; // New: For complex CSS backgrounds (gradients, stripes)
   color: string;
   rotation: number;
   scale: number;
@@ -12,7 +13,10 @@ export interface CharacterStyle {
   borderWidth: number;
   borderColor: string;
   zIndex: number;
-  texture?: 'grain' | 'paper' | 'none'; 
+  texture?: 'grain' | 'paper' | 'none';
+  // New: For irregular shapes
+  shapePoints?: {x: number, y: number}[]; 
+  packId?: string; // To identify which renderer to use
 }
 
 export interface ColorPair {
@@ -20,9 +24,22 @@ export interface ColorPair {
   text: string;
 }
 
+export interface StylePack {
+  id: string;
+  label: string;
+  description: string;
+  fontOptions: string[];
+  colors: { bg: string; text: string }[];
+  bgType: 'solid' | 'gradient' | 'stripes' | 'noise';
+  shape: 'rect' | 'jagged' | 'geometric' | 'circle';
+}
+
 export interface PresetConfig {
-  mode: 'preset' | 'ai'; // Mutually exclusive modes
+  mode: 'preset' | 'ai' | 'pack'; // Added 'pack' mode
   
+  // Pack Mode Settings
+  selectedPackId?: string;
+
   // Preset Mode Settings
   chaosLevel: number; 
   fontVariance: number; 
