@@ -165,9 +165,10 @@ export default function App() {
          textureMode: result.textureMode || 'grain'
       }));
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Please ensure API_KEY is set in your environment.");
+      // Show specific error message to help debugging
+      alert(e.message || "An error occurred while generating style.");
     } finally {
       setIsGenerating(false);
     }

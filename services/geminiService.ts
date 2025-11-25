@@ -2,13 +2,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedStyle } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
 export const generateStyleAndContent = async (promptInput: string, includeText: boolean): Promise<GeneratedStyle> => {
-  if (!ai) {
-    throw new Error("API Key not configured");
+  // Access process.env inside the function to ensure it's available at runtime
+  // and handle cases where it might be undefined more gracefully.
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please check your Vercel Environment Variables (Settings > Environment Variables).");
   }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
   You are a visual design assistant for a 'ransom note' style text generator.
@@ -58,18 +61,12 @@ export const generateStyleAndContent = async (promptInput: string, includeText: 
 
     const result = JSON.parse(response.text || '{}');
     return result as GeneratedStyle;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini generation error:", error);
-    // Fallback
-    return { 
-      mood: "Error",
-      chaosLevel: 50,
-      fontVariance: 50,
-      textureMode: "grain",
-      palette: [
-        { bg: "#000000", text: "#FFFFFF" },
-        { bg: "#FF0000", text: "#FFFFFF" }
-      ]
-    };
+    // Throw the specific error so the UI can display it
+    if (error.message) {
+        throw new Error(`AI Service Error: ${error.message}`);
+    }
+    throw error;
   }
 };
