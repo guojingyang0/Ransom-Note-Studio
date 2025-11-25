@@ -2,13 +2,42 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedStyle } from "../types";
 
+// Helper to safely get env vars in different environments
+const getApiKey = () => {
+  let key = "";
+  
+  // 1. Try Vite standard (import.meta.env)
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      key = import.meta.env.VITE_API_KEY || import.meta.env.NEXT_PUBLIC_GEMINI_API_KEY || import.meta.env.API_KEY;
+    }
+  } catch (e) {}
+
+  // 2. Try Node/Webpack process.env (Standard in many other setups)
+  if (!key) {
+    try {
+      // @ts-ignore
+      if (typeof process !== 'undefined' && process.env) {
+        // @ts-ignore
+        key = process.env.VITE_API_KEY || process.env.API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      }
+    } catch (e) {}
+  }
+
+  return key;
+};
+
 export const generateStyleAndContent = async (promptInput: string, includeText: boolean): Promise<GeneratedStyle> => {
-  // Access process.env inside the function to ensure it's available at runtime
-  // and handle cases where it might be undefined more gracefully.
-  const apiKey = process.env.API_KEY;
+  const apiKey = getApiKey();
 
   if (!apiKey) {
-    throw new Error("API Key is missing. Please check your Vercel Environment Variables (Settings > Environment Variables).");
+    throw new Error(
+      "API Key is missing.\n\n" +
+      "For Vercel/Vite deployments: Please add 'VITE_API_KEY' in Settings > Environment Variables and Redeploy.\n" +
+      "For Local: Check your .env file."
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey });
