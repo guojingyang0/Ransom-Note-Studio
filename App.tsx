@@ -23,6 +23,7 @@ export default function App() {
     selectedPackId: 'redacted' // Default pack
   });
   
+  const [exportSize, setExportSize] = useState({ w: 1920, h: 1080 });
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -329,10 +330,163 @@ export default function App() {
      }
   };
 
+  // --- SVG Rendering Logic ---
+  const generateSVG = async () => {
+    // 1. Create a dummy canvas context for text measurement (crucial for accurate layout)
+    const measureCanvas = document.createElement('canvas');
+    const ctx = measureCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // 2. Prepare SVG Parts
+    const width = exportSize.w;
+    const height = exportSize.h;
+    
+    // Definitions: Fonts and Patterns
+    const fontImports = `@import url('https://fonts.googleapis.com/css2?family=${FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap');`;
+    
+    let defs = `<style>${fontImports}</style>`;
+    
+    // Add patterns for specific packs
+    defs += `
+      <pattern id="industrial-stripes" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="20" height="20" fill="#FACC15"/>
+        <line x1="0" y1="0" x2="0" y2="20" stroke="black" stroke-width="10" stroke-linecap="square"/>
+      </pattern>
+      <linearGradient id="acid-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FF00FF" />
+        <stop offset="100%" stop-color="#FFFF00" />
+      </linearGradient>
+    `;
+
+    // 3. Layout Loop (Mirrors drawToCanvas logic)
+    let svgContent = '';
+    const startX = 50;
+    let startY = 150;
+    let currentX = startX;
+    const lineHeight = 160; 
+    const maxWidth = width - 100;
+
+    styles.forEach((style, index) => {
+      // Newline handling
+      if (style.char === '\n') {
+        currentX = startX;
+        startY += lineHeight;
+        return;
+      }
+
+      // Measure
+      const fontSize = 60;
+      ctx.font = style.fontFamily ? `${fontSize}px "${style.fontFamily}"` : `${fontSize}px sans-serif`;
+      const textMetrics = ctx.measureText(style.char);
+      const charWidth = textMetrics.width;
+      const boxPadding = style.padding * 2;
+      const boxWidth = charWidth + boxPadding;
+      const boxHeight = 110;
+
+      // Wrap
+      if (currentX + boxWidth > maxWidth) {
+          currentX = startX;
+          startY += lineHeight;
+      }
+
+      // Space
+      if (style.char === ' ') {
+          currentX += boxWidth;
+          return;
+      }
+
+      // Calculate transforms
+      const xPos = currentX + boxWidth / 2;
+      const yPos = startY;
+      const transform = `translate(${xPos}, ${yPos}) rotate(${style.rotation}) scale(${style.scale})`;
+
+      // --- Build Element ---
+      let shapeElement = '';
+      
+      // Determine Fill
+      let fill = style.backgroundColor;
+      if (style.packId === 'industrial') fill = 'url(#industrial-stripes)';
+      if (style.packId === 'acid') fill = 'url(#acid-gradient)';
+      // Note: Regular gradients from CSS (backgroundCss) are hard to port 1:1 without parsing, 
+      // so we stick to solid colors for standard presets in SVG export for reliability.
+
+      // Determine Shape (Rect or Polygon)
+      if (style.shapePoints) {
+          // Convert normalized points 0-1 to local coords centered at 0,0 (-w/2 to w/2)
+          const pointsStr = style.shapePoints.map(p => {
+              const px = (p.x * boxWidth) - (boxWidth/2);
+              const py = (p.y * boxHeight) - (boxHeight/2);
+              return `${px},${py}`;
+          }).join(' ');
+          shapeElement = `<polygon points="${pointsStr}" fill="${fill}" />`;
+      } else {
+          const rx = style.borderRadius === '50%' ? '50%' : (parseInt(style.borderRadius) || 0);
+          shapeElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2}" width="${boxWidth}" height="${boxHeight}" rx="${rx}" fill="${fill}" />`;
+      }
+
+      // Border
+      let borderElement = '';
+      if (style.borderWidth > 0 && !style.shapePoints) {
+          borderElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2}" width="${boxWidth}" height="${boxHeight}" fill="none" stroke="${style.borderColor}" stroke-width="${style.borderWidth}" />`;
+      }
+
+      // Shadow (Simple SVG filter is complex, using simple offset rect if needed, or skipping for clean vector)
+      // We'll skip shadow for clean SVG export as requested by most designers
+
+      // Text
+      // Note: y="5" to approximate baseline centering used in canvas (textBaseline middle + 5 offset)
+      const textElement = `<text x="0" y="5" fill="${style.color}" font-family="${style.fontFamily || 'sans-serif'}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle">${style.char}</text>`;
+
+      svgContent += `<g transform="${transform}">
+        ${shapeElement}
+        ${borderElement}
+        ${textElement}
+      </g>`;
+
+      currentX += boxWidth + 15;
+    });
+
+    // 4. Construct Final SVG String
+    const svgString = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>${defs}</defs>
+      ${svgContent}
+    </svg>`;
+
+    return svgString;
+  };
+
+  const handleDownloadSVG = async () => {
+      try {
+          const svgString = await generateSVG();
+          if (!svgString) return;
+          
+          const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `cutout-collage-${Date.now()}.svg`;
+          link.click();
+      } catch (error) {
+          console.error("SVG Export failed:", error);
+          alert("SVG Export failed.");
+      }
+  };
+
   // --- Canvas Rendering Logic ---
   const drawToCanvas = async (isExport = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    
+    // Update canvas size for export
+    if (isExport) {
+        canvas.width = exportSize.w;
+        canvas.height = exportSize.h;
+    } else {
+        // Preview resolution (lower for performance, or standard 1080p)
+        canvas.width = 1920; 
+        canvas.height = 1080;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -349,7 +503,7 @@ export default function App() {
     let startY = 150;
     let currentX = startX;
     const lineHeight = 160; 
-    const maxWidth = 1800;
+    const maxWidth = canvas.width - 100; // Adjust max width based on canvas size
 
     styles.forEach((style) => {
       if (style.char === '\n') {
@@ -462,9 +616,9 @@ export default function App() {
     });
   };
 
-  const handleDownload = async () => {
+  const handleDownloadPNG = async () => {
     try {
-      await drawToCanvas(true);
+      await drawToCanvas(true); // Draw with export dimensions
       const canvas = canvasRef.current;
       if (canvas) {
         const link = document.createElement('a');
@@ -479,6 +633,7 @@ export default function App() {
   };
 
   useEffect(() => {
+      // Small debounce to avoid flashing updates
       const t = setTimeout(() => drawToCanvas(false), 500);
       return () => clearTimeout(t);
   }, [styles]);
@@ -509,9 +664,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#121212] text-gray-100 flex flex-col font-sans">
-      <header className="border-b border-gray-800 bg-[#1A1A1A] p-4 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="bg-yellow-400 text-black p-2 rounded-lg transform -rotate-3 font-['Black_Ops_One'] text-xl">
+      <header className="border-b border-gray-800 bg-[#1A1A1A] p-4 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-50 gap-4">
+        <div className="flex items-center gap-3 self-start sm:self-center">
+          <div className="bg-yellow-400 text-black p-2 rounded-lg transform -rotate-3 font-['Black_Ops_One'] text-xl select-none">
             RANSOM
           </div>
           <div className="flex flex-col">
@@ -519,17 +674,48 @@ export default function App() {
             <span className="text-xs text-gray-400">{t.subtitle}</span>
           </div>
         </div>
-        <div className="flex gap-4">
-           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-xs text-gray-500 hover:text-gray-300 self-center hidden sm:block">
+
+        {/* Export Controls */}
+        <div className="flex flex-wrap items-center gap-3 bg-gray-900/50 p-2 rounded-xl border border-gray-700">
+           <div className="flex items-center gap-2 border-r border-gray-700 pr-3">
+              <span className="text-[10px] text-gray-500 font-bold uppercase">{t.width}</span>
+              <input 
+                 type="number" 
+                 value={exportSize.w} 
+                 onChange={(e) => setExportSize(prev => ({...prev, w: Number(e.target.value)}))}
+                 className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"
+              />
+              <span className="text-[10px] text-gray-500 font-bold uppercase">{t.height}</span>
+              <input 
+                 type="number" 
+                 value={exportSize.h} 
+                 onChange={(e) => setExportSize(prev => ({...prev, h: Number(e.target.value)}))}
+                 className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"
+              />
+           </div>
+
+           <div className="flex gap-2">
+             <button 
+               onClick={handleDownloadSVG}
+               className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 border border-gray-600"
+             >
+               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+               {t.exportSVG}
+             </button>
+             <button 
+               onClick={handleDownloadPNG}
+               className="bg-white hover:bg-gray-200 text-black px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+             >
+               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+               {t.exportPNG}
+             </button>
+           </div>
+        </div>
+
+        <div className="hidden sm:block">
+           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-[10px] text-gray-500 hover:text-gray-300">
              {t.poweredBy}
            </a>
-           <button 
-             onClick={handleDownload}
-             className="bg-white text-black px-4 py-2 rounded-full font-bold text-sm hover:bg-gray-200 transition-colors flex items-center gap-2"
-           >
-             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-             {t.exportPNG}
-           </button>
         </div>
       </header>
 

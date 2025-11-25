@@ -35,6 +35,11 @@ const StyleControls: React.FC<StyleControlsProps> = ({
     setConfig(prev => ({ ...prev, [key]: value, mode: 'preset' }));
   };
 
+  // Allow changing params without switching mode (for AI fine-tuning)
+  const handleParamChange = <K extends keyof PresetConfig>(key: K, value: PresetConfig[K]) => {
+    setConfig(prev => ({ ...prev, [key]: value }));
+  };
+
   const handlePackSelect = (packId: string) => {
     setConfig(prev => ({ ...prev, mode: 'pack', selectedPackId: packId }));
   }
@@ -288,17 +293,83 @@ const StyleControls: React.FC<StyleControlsProps> = ({
               )}
             </button>
             
-            {/* Visual Indicator of current custom style */}
+            {/* Visual Indicator and Fine Tuning */}
             {config.customPalette.length > 0 && (
-              <div className="pt-2 border-t border-gray-700">
-                <span className="text-[10px] text-gray-500 uppercase block mb-2">Current Generated Palette</span>
-                <div className="flex gap-1 h-6">
-                  {config.customPalette.map((cp, idx) => (
-                     <div key={idx} className="flex-1 rounded" style={{background: cp.bg}}>
-                        <div className="w-full h-full rounded opacity-50 flex items-center justify-center" style={{color: cp.text}}>A</div>
-                     </div>
-                  ))}
+              <div className="pt-4 border-t border-gray-700 space-y-4">
+                
+                {/* Palette Preview */}
+                <div>
+                  <span className="text-[10px] text-gray-500 uppercase block mb-2">Current Generated Palette</span>
+                  <div className="flex gap-1 h-6">
+                    {config.customPalette.map((cp, idx) => (
+                       <div key={idx} className="flex-1 rounded" style={{background: cp.bg}}>
+                          <div className="w-full h-full rounded opacity-50 flex items-center justify-center" style={{color: cp.text}}>A</div>
+                       </div>
+                    ))}
+                  </div>
                 </div>
+
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">{t.finetuneTitle}</h4>
+
+                {/* Chaos Slider (AI) */}
+                <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <label className="text-xs font-bold text-gray-500">{t.chaosLevel}</label>
+                        <span className="text-xs text-purple-400 font-mono">{config.chaosLevel}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={config.chaosLevel}
+                        onChange={(e) => handleParamChange('chaosLevel', Number(e.target.value))}
+                        className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                    />
+                </div>
+
+                {/* Font Variance Slider (AI) */}
+                <div className="space-y-2">
+                    <div className="flex justify-between">
+                        <label className="text-xs font-bold text-gray-500">{t.fontVariance}</label>
+                        <span className="text-xs text-purple-400 font-mono">{config.fontVariance}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={config.fontVariance}
+                        onChange={(e) => handleParamChange('fontVariance', Number(e.target.value))}
+                        className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                    />
+                </div>
+
+                {/* Texture Selector (AI) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase">{t.texture}</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['none', 'grain', 'paper', 'mixed'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => handleParamChange('textureMode', mode)}
+                        className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center ${
+                          config.textureMode === mode 
+                            ? 'border-purple-400 bg-gray-700 text-purple-400' 
+                            : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >
+                        {t.textures[mode]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={onShuffle}
+                  className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    {t.reshuffle}
+                </button>
               </div>
             )}
           </div>

@@ -128,8 +128,15 @@ export const TRANSLATIONS = {
     generateBtn: "Generate Style",
     generating: "Analyzing...",
     includeText: "Also rewrite text?",
+    finetuneTitle: "Fine-tune Results",
     
-    exportPNG: "Export PNG",
+    // Export
+    exportPNG: "PNG",
+    exportSVG: "SVG",
+    exportSize: "Size",
+    width: "W",
+    height: "H",
+    
     poweredBy: "Powered by Gemini",
     modes: {
       bw: "B&W",
@@ -177,8 +184,15 @@ export const TRANSLATIONS = {
     generateBtn: "生成风格",
     generating: "AI 思考中...",
     includeText: "同时重写文案？",
+    finetuneTitle: "微调生成结果",
     
+    // Export
     exportPNG: "导出 PNG",
+    exportSVG: "导出 SVG",
+    exportSize: "画布尺寸",
+    width: "宽",
+    height: "高",
+    
     poweredBy: "由 Gemini 驱动",
     modes: {
       bw: "黑白",
