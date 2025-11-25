@@ -17,6 +17,8 @@ export interface CharacterStyle {
   // New: For irregular shapes
   shapePoints?: {x: number, y: number}[]; 
   packId?: string; // To identify which renderer to use
+  bgType?: string; // Store specific background type for SVG/Canvas reconstruction
+  bgPatternColors?: { bg: string, fg: string }; // Store pattern colors
 }
 
 export interface ColorPair {
@@ -30,7 +32,7 @@ export interface StylePack {
   description: string;
   fontOptions: string[];
   colors: { bg: string; text: string }[];
-  bgType: 'solid' | 'gradient' | 'stripes' | 'noise';
+  bgType: 'solid' | 'gradient' | 'stripes' | 'noise' | 'dots' | 'grid' | 'checker' | 'lines';
   shape: 'rect' | 'jagged' | 'geometric' | 'circle';
 }
 

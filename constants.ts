@@ -35,8 +35,30 @@ export const STYLE_PACKS: Record<string, StylePack> = {
     description: 'Hazard stripes and brutalist typography.',
     fontOptions: ['Black Ops One', 'Anton', 'Rubik Glitch'],
     colors: [{ bg: '#FACC15', text: '#000000' }], // Yellow/Black
-    bgType: 'stripes',
+    bgType: 'lines',
     shape: 'geometric'
+  },
+  'popart': {
+    id: 'popart',
+    label: 'Pop Art',
+    description: 'Retro comic book dots and vibrant colors.',
+    fontOptions: ['Bangers', 'Ultra', 'Righteous'],
+    colors: [
+      { bg: '#FFFFFF', text: '#FF0000' }, 
+      { bg: '#FFE4E1', text: '#0000FF' },
+      { bg: '#E0FFFF', text: '#FF1493' }
+    ],
+    bgType: 'dots',
+    shape: 'circle'
+  },
+  'blueprint': {
+    id: 'blueprint',
+    label: 'Blueprint',
+    description: 'Engineering grid and technical lettering.',
+    fontOptions: ['VT323', 'Courier Prime'],
+    colors: [{ bg: '#1E90FF', text: '#FFFFFF' }],
+    bgType: 'grid',
+    shape: 'rect'
   },
   'scrapbook': {
     id: 'scrapbook',

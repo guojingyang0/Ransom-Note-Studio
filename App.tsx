@@ -68,6 +68,24 @@ export default function App() {
     return `polygon(${points.map(p => `${p.x * 100}% ${p.y * 100}%`).join(', ')})`;
   };
 
+  // Helper for DOM CSS patterns
+  const getPatternCss = (type: string, bg: string, fg: string) => {
+      switch (type) {
+          case 'lines':
+              return `repeating-linear-gradient(45deg, ${bg}, ${bg} 10px, ${fg} 10px, ${fg} 20px)`;
+          case 'dots':
+              return `radial-gradient(circle, ${fg} 2px, transparent 2.5px), ${bg}`;
+          case 'grid':
+              return `linear-gradient(${fg} 1px, transparent 1px), linear-gradient(90deg, ${fg} 1px, transparent 1px), ${bg}`;
+          case 'checker':
+              return `repeating-linear-gradient(45deg, ${fg} 25%, transparent 25%, transparent 75%, ${fg} 75%, ${fg}), repeating-linear-gradient(45deg, ${fg} 25%, ${bg} 25%, ${bg} 75%, ${fg} 75%, ${fg})`; // Simple checker is harder with gradient, let's use conic or fallback
+          case 'gradient':
+              return `linear-gradient(135deg, ${bg}, ${fg})`;
+          default:
+              return bg;
+      }
+  };
+
   // Core logic: Generate style for a single character based on config
   const createCharStyle = useCallback((char: string, index: number): CharacterStyle => {
     if (char === '\n') {
@@ -115,6 +133,8 @@ export default function App() {
     let bgCss = undefined;
     let texture: 'grain' | 'paper' | 'none' = 'none';
     let packId = undefined;
+    let bgType = undefined;
+    let bgPatternColors = undefined;
 
     // --- MODE: PACK ---
     if (config.mode === 'pack' && config.selectedPackId) {
@@ -130,13 +150,19 @@ export default function App() {
             fontFamily = pack.fontOptions[randomInt(0, pack.fontOptions.length - 1)];
             
             // Background Logic
-            if (pack.bgType === 'stripes') {
-                bgCss = `repeating-linear-gradient(45deg, ${bg}, ${bg} 10px, #000 10px, #000 20px)`;
-            } else if (pack.bgType === 'gradient') {
-                bgCss = `linear-gradient(135deg, ${bg}, ${textColor === '#FFFF00' ? '#00FFFF' : '#ffffff'})`;
-            } else {
-                bgCss = bg;
+            bgType = pack.bgType;
+            bgPatternColors = { bg, fg: packId === 'industrial' ? '#000000' : textColor };
+            
+            // Special overrides for pattern colors
+            if (packId === 'popart') {
+                 bgPatternColors.fg = textColor; 
+                 // Ensure contrast if needed, but designer packs usually set specific pairs
             }
+            if (packId === 'blueprint') {
+                bgPatternColors.fg = 'rgba(255,255,255,0.3)';
+            }
+
+            bgCss = getPatternCss(bgType, bgPatternColors.bg, bgPatternColors.fg);
 
             // Shape Logic
             if (pack.shape === 'jagged') {
@@ -208,7 +234,9 @@ export default function App() {
       zIndex: randomInt(1, 10),
       texture,
       shapePoints,
-      packId
+      packId,
+      bgType,
+      bgPatternColors
     };
   }, [config]);
 
@@ -300,30 +328,76 @@ export default function App() {
     return ctx.createPattern(canvas, 'repeat');
   };
 
+  // Create procedural geometric patterns for Canvas
+  const createPatternCanvas = (ctx: CanvasRenderingContext2D, type: string, bg: string, fg: string) => {
+      const size = 40;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const pCtx = canvas.getContext('2d');
+      if (!pCtx) return null;
+
+      // Fill Background
+      pCtx.fillStyle = bg;
+      pCtx.fillRect(0, 0, size, size);
+
+      if (type === 'lines') {
+          pCtx.strokeStyle = fg;
+          pCtx.lineWidth = 10;
+          pCtx.beginPath();
+          // Diagonal line
+          pCtx.moveTo(0, size);
+          pCtx.lineTo(size, 0);
+          // Corners for tiling
+          pCtx.moveTo(-10, 10);
+          pCtx.lineTo(10, -10);
+          pCtx.moveTo(size-10, size+10);
+          pCtx.lineTo(size+10, size-10);
+          pCtx.stroke();
+      } 
+      else if (type === 'dots') {
+          pCtx.fillStyle = fg;
+          pCtx.beginPath();
+          pCtx.arc(size/2, size/2, 6, 0, Math.PI * 2);
+          pCtx.fill();
+          // Corners
+          pCtx.beginPath(); pCtx.arc(0, 0, 6, 0, Math.PI * 2); pCtx.fill();
+          pCtx.beginPath(); pCtx.arc(size, 0, 6, 0, Math.PI * 2); pCtx.fill();
+          pCtx.beginPath(); pCtx.arc(0, size, 6, 0, Math.PI * 2); pCtx.fill();
+          pCtx.beginPath(); pCtx.arc(size, size, 6, 0, Math.PI * 2); pCtx.fill();
+      }
+      else if (type === 'grid') {
+          pCtx.strokeStyle = fg;
+          pCtx.lineWidth = 1;
+          pCtx.beginPath();
+          pCtx.moveTo(0, 0); pCtx.lineTo(size, 0);
+          pCtx.moveTo(0, 0); pCtx.lineTo(0, size);
+          pCtx.stroke();
+      }
+
+      return ctx.createPattern(canvas, 'repeat');
+  };
+
   // Helper to draw specific pack background patterns on Canvas
   const drawPackBackground = (ctx: CanvasRenderingContext2D, style: CharacterStyle, width: number, height: number) => {
-     if (style.packId === 'industrial') {
-        // Draw stripes
-        ctx.fillStyle = style.backgroundColor;
-        ctx.fillRect(-width/2, -height/2, width, height);
-        
-        ctx.beginPath();
-        ctx.lineWidth = 10;
-        ctx.strokeStyle = '#000000';
-        for(let i = -width; i < width; i+=20) {
-            ctx.moveTo(i, -height/2);
-            ctx.lineTo(i + height, height/2);
-        }
-        ctx.stroke();
-     } 
-     else if (style.packId === 'acid') {
-         const grad = ctx.createLinearGradient(-width/2, -height/2, width/2, height/2);
-         grad.addColorStop(0, style.backgroundColor);
-         grad.addColorStop(1, style.color === '#FFFF00' ? '#00FFFF' : '#FFFFFF');
-         ctx.fillStyle = grad;
-         ctx.fillRect(-width/2, -height/2, width, height);
-     }
-     else {
+     if (style.bgType && style.bgPatternColors && style.bgType !== 'solid') {
+         if (style.bgType === 'gradient') {
+            const grad = ctx.createLinearGradient(-width/2, -height/2, width/2, height/2);
+            grad.addColorStop(0, style.bgPatternColors.bg);
+            grad.addColorStop(1, style.bgPatternColors.fg);
+            ctx.fillStyle = grad;
+            ctx.fillRect(-width/2, -height/2, width, height);
+         } else {
+            const pattern = createPatternCanvas(ctx, style.bgType, style.bgPatternColors.bg, style.bgPatternColors.fg);
+            if (pattern) {
+                ctx.fillStyle = pattern;
+                ctx.fillRect(-width/2, -height/2, width, height);
+            } else {
+                ctx.fillStyle = style.backgroundColor;
+                ctx.fillRect(-width/2, -height/2, width, height);
+            }
+         }
+     } else {
          // Default solid
          ctx.fillStyle = style.backgroundColor;
          ctx.fillRect(-width/2, -height/2, width, height);
@@ -344,19 +418,49 @@ export default function App() {
     // Definitions: Fonts and Patterns
     const fontImports = `@import url('https://fonts.googleapis.com/css2?family=${FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap');`;
     
-    let defs = `<style>${fontImports}</style>`;
+    let defs = `<style>${fontImports.replace(/&/g, '&amp;')}</style>`;
     
-    // Add patterns for specific packs
-    defs += `
-      <pattern id="industrial-stripes" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="20" height="20" fill="#FACC15"/>
-        <line x1="0" y1="0" x2="0" y2="20" stroke="black" stroke-width="10" stroke-linecap="square"/>
-      </pattern>
-      <linearGradient id="acid-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#FF00FF" />
-        <stop offset="100%" stop-color="#FFFF00" />
-      </linearGradient>
-    `;
+    // Add patterns for specific packs (Dynamic)
+    // We collect unique patterns used in styles to keep SVG size optimal
+    const usedPatterns = new Set<string>();
+    styles.forEach(s => {
+        if (s.bgType && s.bgType !== 'solid' && s.bgPatternColors) {
+            usedPatterns.add(JSON.stringify({ type: s.bgType, colors: s.bgPatternColors }));
+        }
+    });
+
+    usedPatterns.forEach(pStr => {
+        const p = JSON.parse(pStr);
+        const id = `pat-${p.type}-${p.colors.bg.replace('#','')}-${p.colors.fg.replace('#','')}`;
+        if (p.type === 'lines') {
+            defs += `
+            <pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="20" height="20" fill="${p.colors.bg}"/>
+                <line x1="0" y1="0" x2="0" y2="20" stroke="${p.colors.fg}" stroke-width="10" stroke-linecap="square"/>
+            </pattern>`;
+        }
+        else if (p.type === 'dots') {
+            defs += `
+            <pattern id="${id}" width="15" height="15" patternUnits="userSpaceOnUse">
+                <rect width="15" height="15" fill="${p.colors.bg}"/>
+                <circle cx="7.5" cy="7.5" r="3" fill="${p.colors.fg}"/>
+            </pattern>`;
+        }
+        else if (p.type === 'grid') {
+            defs += `
+            <pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse">
+                <rect width="20" height="20" fill="${p.colors.bg}"/>
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="${p.colors.fg}" stroke-width="1"/>
+            </pattern>`;
+        }
+        else if (p.type === 'gradient') {
+            defs += `
+            <linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="${p.colors.bg}" />
+                <stop offset="100%" stop-color="${p.colors.fg}" />
+            </linearGradient>`;
+        }
+    });
 
     // 3. Layout Loop (Mirrors drawToCanvas logic)
     let svgContent = '';
@@ -405,10 +509,10 @@ export default function App() {
       
       // Determine Fill
       let fill = style.backgroundColor;
-      if (style.packId === 'industrial') fill = 'url(#industrial-stripes)';
-      if (style.packId === 'acid') fill = 'url(#acid-gradient)';
-      // Note: Regular gradients from CSS (backgroundCss) are hard to port 1:1 without parsing, 
-      // so we stick to solid colors for standard presets in SVG export for reliability.
+      if (style.bgType && style.bgType !== 'solid' && style.bgPatternColors) {
+           const id = `pat-${style.bgType}-${style.bgPatternColors.bg.replace('#','')}-${style.bgPatternColors.fg.replace('#','')}`;
+           fill = `url(#${id})`;
+      }
 
       // Determine Shape (Rect or Polygon)
       if (style.shapePoints) {
@@ -430,12 +534,16 @@ export default function App() {
           borderElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2}" width="${boxWidth}" height="${boxHeight}" fill="none" stroke="${style.borderColor}" stroke-width="${style.borderWidth}" />`;
       }
 
-      // Shadow (Simple SVG filter is complex, using simple offset rect if needed, or skipping for clean vector)
-      // We'll skip shadow for clean SVG export as requested by most designers
+      // Escape special characters for SVG text
+      const escapedChar = style.char
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
 
       // Text
-      // Note: y="5" to approximate baseline centering used in canvas (textBaseline middle + 5 offset)
-      const textElement = `<text x="0" y="5" fill="${style.color}" font-family="${style.fontFamily || 'sans-serif'}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle">${style.char}</text>`;
+      const textElement = `<text x="0" y="5" fill="${style.color}" font-family="${style.fontFamily || 'sans-serif'}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle">${escapedChar}</text>`;
 
       svgContent += `<g transform="${transform}">
         ${shapeElement}
@@ -564,19 +672,7 @@ export default function App() {
       }
 
       // Background Drawing
-      if (style.packId) {
-          drawPackBackground(ctx, style, boxWidth, boxHeight);
-      } else {
-          // Standard Preset Background
-          ctx.fillStyle = style.backgroundColor;
-          if (style.borderRadius !== '0px' && !style.shapePoints) {
-            ctx.beginPath();
-            ctx.roundRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight, 4);
-            ctx.fill();
-          } else {
-            ctx.fillRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
-          }
-      }
+      drawPackBackground(ctx, style, boxWidth, boxHeight);
 
       // Reset Shadow
       ctx.shadowColor = "transparent";
