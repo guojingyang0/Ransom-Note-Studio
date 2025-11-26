@@ -27,7 +27,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
     fontOptions: ['Courier Prime', 'Special Elite', 'VT323'],
     colors: [{ bg: '#111111', text: '#F0F0F0' }],
     bgType: 'solid',
-    shape: 'rect'
+    shape: 'rect',
+    preferredEffect: 'none',
+    preferredDecoration: 'none'
   },
   'industrial': {
     id: 'industrial',
@@ -36,7 +38,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
     fontOptions: ['Black Ops One', 'Anton', 'Rubik Glitch'],
     colors: [{ bg: '#FACC15', text: '#000000' }], // Yellow/Black
     bgType: 'lines',
-    shape: 'geometric'
+    shape: 'geometric',
+    preferredEffect: '3d', // Industrial look
+    preferredDecoration: 'none'
   },
   'popart': {
     id: 'popart',
@@ -49,7 +53,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
       { bg: '#E0FFFF', text: '#FF1493' }
     ],
     bgType: 'dots',
-    shape: 'circle'
+    shape: 'circle',
+    preferredEffect: 'outline', // Comic style
+    preferredDecoration: 'none'
   },
   'blueprint': {
     id: 'blueprint',
@@ -58,7 +64,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
     fontOptions: ['VT323', 'Courier Prime'],
     colors: [{ bg: '#1E90FF', text: '#FFFFFF' }],
     bgType: 'grid',
-    shape: 'rect'
+    shape: 'rect',
+    preferredEffect: 'none',
+    preferredDecoration: 'pin'
   },
   'scrapbook': {
     id: 'scrapbook',
@@ -71,7 +79,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
       { bg: '#e0dcd3', text: '#000000' }
     ],
     bgType: 'noise',
-    shape: 'jagged'
+    shape: 'jagged',
+    preferredEffect: 'shadow',
+    preferredDecoration: 'tape' // Tape helps the scrapbook look
   },
   'acid': {
     id: 'acid',
@@ -80,7 +90,9 @@ export const STYLE_PACKS: Record<string, StylePack> = {
     fontOptions: ['Rubik Glitch', 'Monoton', 'Righteous'],
     colors: [{ bg: '#FF00FF', text: '#FFFF00' }], // Neon
     bgType: 'gradient',
-    shape: 'circle' // or geometric
+    shape: 'circle',
+    preferredEffect: 'neon',
+    preferredDecoration: 'none'
   }
 };
 

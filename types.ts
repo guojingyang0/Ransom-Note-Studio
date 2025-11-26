@@ -19,6 +19,11 @@ export interface CharacterStyle {
   packId?: string; // To identify which renderer to use
   bgType?: string; // Store specific background type for SVG/Canvas reconstruction
   bgPatternColors?: { bg: string, fg: string }; // Store pattern colors
+  
+  // New Visual Effects
+  visualEffect?: 'none' | 'shadow' | 'outline' | 'neon' | '3d';
+  decoration?: 'none' | 'tape' | 'pin';
+  decorationColor?: string;
 }
 
 export interface ColorPair {
@@ -34,6 +39,9 @@ export interface StylePack {
   colors: { bg: string; text: string }[];
   bgType: 'solid' | 'gradient' | 'stripes' | 'noise' | 'dots' | 'grid' | 'checker' | 'lines';
   shape: 'rect' | 'jagged' | 'geometric' | 'circle';
+  // New: Preferred effects for this pack
+  preferredEffect?: 'none' | 'shadow' | 'outline' | 'neon' | '3d';
+  preferredDecoration?: 'none' | 'tape' | 'pin';
 }
 
 export interface PresetConfig {

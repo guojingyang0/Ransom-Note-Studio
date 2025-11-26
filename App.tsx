@@ -34,7 +34,6 @@ export default function App() {
   // --- Shape Generators ---
   
   // Generates a jagged polygon (for torn paper effect)
-  // Returns points in 0-1 normalized range
   const generateJaggedShape = (): {x: number, y: number}[] => {
     const points = [];
     const segments = 10;
@@ -78,7 +77,7 @@ export default function App() {
           case 'grid':
               return `linear-gradient(${fg} 1px, transparent 1px), linear-gradient(90deg, ${fg} 1px, transparent 1px), ${bg}`;
           case 'checker':
-              return `repeating-linear-gradient(45deg, ${fg} 25%, transparent 25%, transparent 75%, ${fg} 75%, ${fg}), repeating-linear-gradient(45deg, ${fg} 25%, ${bg} 25%, ${bg} 75%, ${fg} 75%, ${fg})`; // Simple checker is harder with gradient, let's use conic or fallback
+              return `repeating-linear-gradient(45deg, ${fg} 25%, transparent 25%, transparent 75%, ${fg} 75%, ${fg}), repeating-linear-gradient(45deg, ${fg} 25%, ${bg} 25%, ${bg} 75%, ${fg} 75%, ${fg})`; 
           case 'gradient':
               return `linear-gradient(135deg, ${bg}, ${fg})`;
           default:
@@ -135,28 +134,26 @@ export default function App() {
     let packId = undefined;
     let bgType = undefined;
     let bgPatternColors = undefined;
+    let visualEffect: 'none' | 'shadow' | 'outline' | 'neon' | '3d' = 'none';
+    let decoration: 'none' | 'tape' | 'pin' = 'none';
+    let decorationColor = undefined;
 
     // --- MODE: PACK ---
     if (config.mode === 'pack' && config.selectedPackId) {
         const pack = STYLE_PACKS[config.selectedPackId];
         if (pack) {
             packId = pack.id;
-            // Pick colors from pack
             const colorPair = pack.colors[randomInt(0, pack.colors.length - 1)];
             bg = colorPair.bg;
             textColor = colorPair.text;
             
-            // Pick font
             fontFamily = pack.fontOptions[randomInt(0, pack.fontOptions.length - 1)];
             
-            // Background Logic
             bgType = pack.bgType;
             bgPatternColors = { bg, fg: packId === 'industrial' ? '#000000' : textColor };
             
-            // Special overrides for pattern colors
             if (packId === 'popart') {
                  bgPatternColors.fg = textColor; 
-                 // Ensure contrast if needed, but designer packs usually set specific pairs
             }
             if (packId === 'blueprint') {
                 bgPatternColors.fg = 'rgba(255,255,255,0.3)';
@@ -164,7 +161,6 @@ export default function App() {
 
             bgCss = getPatternCss(bgType, bgPatternColors.bg, bgPatternColors.fg);
 
-            // Shape Logic
             if (pack.shape === 'jagged') {
                 shapePoints = generateJaggedShape();
             } else if (pack.shape === 'geometric') {
@@ -175,17 +171,20 @@ export default function App() {
                 borderRadius = '0px';
             }
             
-            // Chaos (Packs are usually a bit cleaner than pure chaos mode, but still cutouts)
             rotation = random(-5, 5);
             scale = random(0.95, 1.05);
-            
-            // Texture
             if(pack.bgType === 'noise') texture = 'paper';
+            
+            // Assign Preferred Effects
+            if (pack.preferredEffect) visualEffect = pack.preferredEffect;
+            if (pack.preferredDecoration) decoration = pack.preferredDecoration;
+            
+            // Random variation within pack
+            if (packId === 'scrapbook' && Math.random() > 0.5) decoration = 'none';
         }
     } 
     // --- MODE: PRESET / AI ---
     else {
-        // ... (Existing logic for Preset/AI)
         if (config.mode === 'ai' && config.customPalette.length > 0) {
             const pair = config.customPalette[randomInt(0, config.customPalette.length - 1)];
             bg = pair.bg;
@@ -215,6 +214,27 @@ export default function App() {
         scale = random(0.9, 1.0 + (config.chaosLevel / 500));
         borderRadius = random(0, 1) > 0.5 ? '2px' : '0px';
         borderWidth = random(0, 1) > 0.8 ? randomInt(1, 3) : 0;
+        
+        // Random Effects based on Chaos
+        if (config.chaosLevel > 30) {
+            const effectRoll = Math.random();
+            if (effectRoll > 0.8) visualEffect = 'shadow';
+            else if (effectRoll > 0.9) visualEffect = 'outline';
+        }
+        if (config.chaosLevel > 60) {
+             const decRoll = Math.random();
+             if (decRoll > 0.85) decoration = 'tape';
+             if (decRoll > 0.95) decoration = 'pin';
+        }
+    }
+
+    // Decor colors
+    if (decoration === 'tape') {
+        const tapeColors = ['rgba(255,255,255,0.4)', 'rgba(255,255,200,0.5)', 'rgba(255,200,200,0.5)', 'rgba(200,255,200,0.5)'];
+        decorationColor = tapeColors[randomInt(0, tapeColors.length-1)];
+    }
+    if (decoration === 'pin') {
+        decorationColor = '#C0C0C0'; // Silver pin
     }
 
     return {
@@ -235,7 +255,10 @@ export default function App() {
       shapePoints,
       packId,
       bgType,
-      bgPatternColors
+      bgPatternColors,
+      visualEffect,
+      decoration,
+      decorationColor
     };
   }, [config]);
 
@@ -245,16 +268,13 @@ export default function App() {
     setStyles(newStyles);
   }, [createCharStyle]);
 
-  // Re-generate when styles/config change
   useEffect(() => {
     regenerateStyles(text);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.chaosLevel, config.colorVibrancy, config.fontVariance, config.mode, config.customPalette, config.textureMode, config.selectedPackId]); 
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value; 
     setText(newText);
-    
     if (newText.length > text.length && newText.startsWith(text)) {
        const char = newText[newText.length - 1];
        setStyles(prev => [...prev, createCharStyle(char, newText.length - 1)]);
@@ -291,6 +311,7 @@ export default function App() {
     }
   };
 
+  // --- Rendering Helpers ---
   const createTexturePattern = (ctx: CanvasRenderingContext2D, type: 'grain' | 'paper' | 'fabric' | 'grunge' | 'concrete') => {
     const size = 256;
     const canvas = document.createElement('canvas');
@@ -302,71 +323,45 @@ export default function App() {
     const imageData = pCtx.createImageData(size, size);
     const data = imageData.data;
 
+    // ... (Existing texture generation logic same as before, simplified for brevity but keep original implementation)
+    // For this update, I will reuse the exact same logic logic as previous step but ensure it's here
     if (type === 'grain') {
       for (let i = 0; i < data.length; i += 4) {
         const val = Math.random() * 255;
-        data[i] = val;     // R
-        data[i + 1] = val; // G
-        data[i + 2] = val; // B
-        data[i + 3] = 40;  
+        data[i] = val; data[i + 1] = val; data[i + 2] = val; data[i + 3] = 40;  
       }
     } else if (type === 'paper') {
        for (let i = 0; i < data.length; i += 4) {
          const r = Math.random();
-         if (r > 0.98) {
-           data[i] = 80; data[i + 1] = 70; data[i + 2] = 60; data[i + 3] = 60;
-         } else if (r < 0.02) {
-           data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 60;
-         } else {
-           data[i + 3] = 0;
-         }
+         if (r > 0.98) { data[i] = 80; data[i + 1] = 70; data[i + 2] = 60; data[i + 3] = 60; } 
+         else if (r < 0.02) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 60; } 
+         else { data[i + 3] = 0; }
        }
     } else if (type === 'fabric') {
-        // Cross-hatch noise
-        for (let i = 0; i < data.length; i += 4) {
-            data[i+3] = 0;
-        }
-        // Manually draw lines instead of noise pixels for better effect
+        for (let i = 0; i < data.length; i += 4) data[i+3] = 0;
         pCtx.putImageData(imageData, 0, 0);
         pCtx.fillStyle = 'rgba(0,0,0,0.15)';
-        for(let i=0; i<size; i+=3) {
-            pCtx.fillRect(i, 0, 1, size); // Vertical thread
-            pCtx.fillRect(0, i, size, 1); // Horizontal thread
-        }
+        for(let i=0; i<size; i+=3) { pCtx.fillRect(i, 0, 1, size); pCtx.fillRect(0, i, size, 1); }
         return ctx.createPattern(canvas, 'repeat');
-
     } else if (type === 'grunge') {
-        // Splotches
-         for (let i = 0; i < data.length; i += 4) {
-            data[i+3] = 0;
-         }
+         for (let i = 0; i < data.length; i += 4) data[i+3] = 0;
          pCtx.putImageData(imageData, 0, 0);
          for(let i=0; i<30; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
+            const x = Math.random() * size; const y = Math.random() * size;
             const r = Math.random() * 40 + 5;
-            pCtx.beginPath(); 
-            pCtx.arc(x,y,r,0,Math.PI*2); 
-            pCtx.fillStyle=`rgba(0,0,0,${Math.random() * 0.1})`; 
-            pCtx.fill();
+            pCtx.beginPath(); pCtx.arc(x,y,r,0,Math.PI*2); pCtx.fillStyle=`rgba(0,0,0,${Math.random() * 0.1})`; pCtx.fill();
          }
          return ctx.createPattern(canvas, 'repeat');
-         
     } else if (type === 'concrete') {
         for (let i = 0; i < data.length; i += 4) {
-            const val = 100 + Math.random() * 50; // grey base
-            data[i] = val;
-            data[i+1] = val;
-            data[i+2] = val;
-            data[i+3] = 40 + Math.random() * 20; 
+            const val = 100 + Math.random() * 50; 
+            data[i] = val; data[i+1] = val; data[i+2] = val; data[i+3] = 40 + Math.random() * 20; 
         }
     }
-
     pCtx.putImageData(imageData, 0, 0);
     return ctx.createPattern(canvas, 'repeat');
   };
 
-  // Create procedural geometric patterns for Canvas
   const createPatternCanvas = (ctx: CanvasRenderingContext2D, type: string, bg: string, fg: string) => {
       const size = 40;
       const canvas = document.createElement('canvas');
@@ -374,49 +369,32 @@ export default function App() {
       canvas.height = size;
       const pCtx = canvas.getContext('2d');
       if (!pCtx) return null;
-
-      // Fill Background
       pCtx.fillStyle = bg;
       pCtx.fillRect(0, 0, size, size);
 
       if (type === 'lines') {
-          pCtx.strokeStyle = fg;
-          pCtx.lineWidth = 10;
-          pCtx.beginPath();
-          // Diagonal line
-          pCtx.moveTo(0, size);
-          pCtx.lineTo(size, 0);
-          // Corners for tiling
-          pCtx.moveTo(-10, 10);
-          pCtx.lineTo(10, -10);
-          pCtx.moveTo(size-10, size+10);
-          pCtx.lineTo(size+10, size-10);
+          pCtx.strokeStyle = fg; pCtx.lineWidth = 10; pCtx.beginPath();
+          pCtx.moveTo(0, size); pCtx.lineTo(size, 0);
+          pCtx.moveTo(-10, 10); pCtx.lineTo(10, -10);
+          pCtx.moveTo(size-10, size+10); pCtx.lineTo(size+10, size-10);
           pCtx.stroke();
       } 
       else if (type === 'dots') {
-          pCtx.fillStyle = fg;
-          pCtx.beginPath();
-          pCtx.arc(size/2, size/2, 6, 0, Math.PI * 2);
-          pCtx.fill();
-          // Corners
+          pCtx.fillStyle = fg; pCtx.beginPath(); pCtx.arc(size/2, size/2, 6, 0, Math.PI * 2); pCtx.fill();
           pCtx.beginPath(); pCtx.arc(0, 0, 6, 0, Math.PI * 2); pCtx.fill();
           pCtx.beginPath(); pCtx.arc(size, 0, 6, 0, Math.PI * 2); pCtx.fill();
           pCtx.beginPath(); pCtx.arc(0, size, 6, 0, Math.PI * 2); pCtx.fill();
           pCtx.beginPath(); pCtx.arc(size, size, 6, 0, Math.PI * 2); pCtx.fill();
       }
       else if (type === 'grid') {
-          pCtx.strokeStyle = fg;
-          pCtx.lineWidth = 1;
-          pCtx.beginPath();
+          pCtx.strokeStyle = fg; pCtx.lineWidth = 1; pCtx.beginPath();
           pCtx.moveTo(0, 0); pCtx.lineTo(size, 0);
           pCtx.moveTo(0, 0); pCtx.lineTo(0, size);
           pCtx.stroke();
       }
-
       return ctx.createPattern(canvas, 'repeat');
   };
 
-  // Helper to draw specific pack background patterns on Canvas
   const drawPackBackground = (ctx: CanvasRenderingContext2D, style: CharacterStyle, width: number, height: number) => {
      if (style.bgType && style.bgPatternColors && style.bgType !== 'solid') {
          if (style.bgType === 'gradient') {
@@ -436,7 +414,6 @@ export default function App() {
             }
          }
      } else {
-         // Default solid
          ctx.fillStyle = style.backgroundColor;
          ctx.fillRect(-width/2, -height/2, width, height);
      }
@@ -444,22 +421,15 @@ export default function App() {
 
   // --- SVG Rendering Logic ---
   const generateSVG = async () => {
-    // 1. Create a dummy canvas context for text measurement (crucial for accurate layout)
     const measureCanvas = document.createElement('canvas');
     const ctx = measureCanvas.getContext('2d');
     if (!ctx) return;
-
-    // 2. Prepare SVG Parts
     const width = exportSize.w;
     const height = exportSize.h;
     
-    // Definitions: Fonts and Patterns
     const fontImports = `@import url('https://fonts.googleapis.com/css2?family=${FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap');`;
-    
     let defs = `<style>${fontImports.replace(/&/g, '&amp;')}</style>`;
     
-    // Add patterns for specific packs (Dynamic)
-    // We collect unique patterns used in styles to keep SVG size optimal
     const usedPatterns = new Set<string>();
     styles.forEach(s => {
         if (s.bgType && s.bgType !== 'solid' && s.bgPatternColors) {
@@ -471,36 +441,19 @@ export default function App() {
         const p = JSON.parse(pStr);
         const id = `pat-${p.type}-${p.colors.bg.replace('#','')}-${p.colors.fg.replace('#','')}`;
         if (p.type === 'lines') {
-            defs += `
-            <pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <rect width="20" height="20" fill="${p.colors.bg}"/>
-                <line x1="0" y1="0" x2="0" y2="20" stroke="${p.colors.fg}" stroke-width="10" stroke-linecap="square"/>
-            </pattern>`;
+            defs += `<pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="20" height="20" fill="${p.colors.bg}"/><line x1="0" y1="0" x2="0" y2="20" stroke="${p.colors.fg}" stroke-width="10" stroke-linecap="square"/></pattern>`;
         }
         else if (p.type === 'dots') {
-            defs += `
-            <pattern id="${id}" width="15" height="15" patternUnits="userSpaceOnUse">
-                <rect width="15" height="15" fill="${p.colors.bg}"/>
-                <circle cx="7.5" cy="7.5" r="3" fill="${p.colors.fg}"/>
-            </pattern>`;
+            defs += `<pattern id="${id}" width="15" height="15" patternUnits="userSpaceOnUse"><rect width="15" height="15" fill="${p.colors.bg}"/><circle cx="7.5" cy="7.5" r="3" fill="${p.colors.fg}"/></pattern>`;
         }
         else if (p.type === 'grid') {
-            defs += `
-            <pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse">
-                <rect width="20" height="20" fill="${p.colors.bg}"/>
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="${p.colors.fg}" stroke-width="1"/>
-            </pattern>`;
+            defs += `<pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="${p.colors.bg}"/><path d="M 20 0 L 0 0 0 20" fill="none" stroke="${p.colors.fg}" stroke-width="1"/></pattern>`;
         }
         else if (p.type === 'gradient') {
-            defs += `
-            <linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="${p.colors.bg}" />
-                <stop offset="100%" stop-color="${p.colors.fg}" />
-            </linearGradient>`;
+            defs += `<linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${p.colors.bg}" /><stop offset="100%" stop-color="${p.colors.fg}" /></linearGradient>`;
         }
     });
 
-    // 3. Layout Loop (Mirrors drawToCanvas logic)
     let svgContent = '';
     const startX = 50;
     let startY = 150;
@@ -509,52 +462,28 @@ export default function App() {
     const maxWidth = width - 100;
 
     styles.forEach((style, index) => {
-      // Newline handling
-      if (style.char === '\n') {
-        currentX = startX;
-        startY += lineHeight;
-        return;
-      }
-
-      // Measure
+      if (style.char === '\n') { currentX = startX; startY += lineHeight; return; }
       const fontSize = 60;
       ctx.font = style.fontFamily ? `${fontSize}px "${style.fontFamily}"` : `${fontSize}px sans-serif`;
       const textMetrics = ctx.measureText(style.char);
-      const charWidth = textMetrics.width;
-      const boxPadding = style.padding * 2;
-      const boxWidth = charWidth + boxPadding;
+      const boxWidth = textMetrics.width + (style.padding * 2);
       const boxHeight = 110;
 
-      // Wrap
-      if (currentX + boxWidth > maxWidth) {
-          currentX = startX;
-          startY += lineHeight;
-      }
+      if (currentX + boxWidth > maxWidth) { currentX = startX; startY += lineHeight; }
+      if (style.char === ' ') { currentX += boxWidth; return; }
 
-      // Space
-      if (style.char === ' ') {
-          currentX += boxWidth;
-          return;
-      }
-
-      // Calculate transforms
       const xPos = currentX + boxWidth / 2;
       const yPos = startY;
       const transform = `translate(${xPos}, ${yPos}) rotate(${style.rotation}) scale(${style.scale})`;
 
-      // --- Build Element ---
-      let shapeElement = '';
-      
-      // Determine Fill
       let fill = style.backgroundColor;
       if (style.bgType && style.bgType !== 'solid' && style.bgPatternColors) {
            const id = `pat-${style.bgType}-${style.bgPatternColors.bg.replace('#','')}-${style.bgPatternColors.fg.replace('#','')}`;
            fill = `url(#${id})`;
       }
 
-      // Determine Shape (Rect or Polygon)
+      let shapeElement = '';
       if (style.shapePoints) {
-          // Convert normalized points 0-1 to local coords centered at 0,0 (-w/2 to w/2)
           const pointsStr = style.shapePoints.map(p => {
               const px = (p.x * boxWidth) - (boxWidth/2);
               const py = (p.y * boxHeight) - (boxHeight/2);
@@ -566,82 +495,77 @@ export default function App() {
           shapeElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2}" width="${boxWidth}" height="${boxHeight}" rx="${rx}" fill="${fill}" />`;
       }
 
-      // Border
+      // Border (if not geometric)
       let borderElement = '';
       if (style.borderWidth > 0 && !style.shapePoints) {
           borderElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2}" width="${boxWidth}" height="${boxHeight}" fill="none" stroke="${style.borderColor}" stroke-width="${style.borderWidth}" />`;
       }
 
-      // Escape special characters for SVG text
-      const escapedChar = style.char
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+      const escapedChar = style.char.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      
+      // Text Effects SVG
+      let textGroup = '';
+      const textBase = `<text x="0" y="5" font-family="${style.fontFamily || 'sans-serif'}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle"`;
+      
+      if (style.visualEffect === 'outline') {
+          // Stroke + Fill
+          textGroup = `${textBase} stroke="black" stroke-width="3" fill="${style.color}">${escapedChar}</text>`;
+      } else if (style.visualEffect === '3d') {
+          // Layers
+          textGroup = `
+            ${textBase} fill="rgba(0,0,0,0.5)" transform="translate(4, 4)">${escapedChar}</text>
+            ${textBase} fill="rgba(0,0,0,0.5)" transform="translate(2, 2)">${escapedChar}</text>
+            ${textBase} fill="${style.color}">${escapedChar}</text>
+          `;
+      } else if (style.visualEffect === 'neon') {
+          textGroup = `
+             ${textBase} fill="${style.color}" stroke="${style.color}" stroke-width="2" opacity="0.5" filter="blur(2px)">${escapedChar}</text>
+             ${textBase} fill="${style.color}">${escapedChar}</text>
+          `;
+      } else {
+          textGroup = `${textBase} fill="${style.color}">${escapedChar}</text>`;
+      }
 
-      // Text
-      const textElement = `<text x="0" y="5" fill="${style.color}" font-family="${style.fontFamily || 'sans-serif'}" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle">${escapedChar}</text>`;
+      // Decoration SVG
+      let decoElement = '';
+      if (style.decoration === 'tape') {
+          decoElement = `<rect x="${-boxWidth/2}" y="${-boxHeight/2 - 10}" width="${boxWidth}" height="20" fill="${style.decorationColor || 'rgba(255,255,255,0.4)'}" transform="rotate(${random(-5, 5)})" />`;
+      } else if (style.decoration === 'pin') {
+          decoElement = `<circle cx="0" cy="${-boxHeight/2 + 5}" r="4" fill="${style.decorationColor || 'silver'}" stroke="rgba(0,0,0,0.3)" stroke-width="1" />`;
+      }
 
-      svgContent += `<g transform="${transform}">
-        ${shapeElement}
-        ${borderElement}
-        ${textElement}
-      </g>`;
-
+      svgContent += `<g transform="${transform}">${shapeElement}${borderElement}${textGroup}${decoElement}</g>`;
       currentX += boxWidth + 15;
     });
 
-    // 4. Construct Final SVG String
-    const svgString = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>${defs}</defs>
-      ${svgContent}
-    </svg>`;
-
-    return svgString;
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>${svgContent}</svg>`;
   };
 
   const handleDownloadSVG = async () => {
       try {
           const svgString = await generateSVG();
           if (!svgString) return;
-          
           const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
           link.download = `cutout-collage-${Date.now()}.svg`;
           link.click();
-      } catch (error) {
-          console.error("SVG Export failed:", error);
-          alert("SVG Export failed.");
-      }
+      } catch (error) { console.error("SVG Export failed:", error); alert("SVG Export failed."); }
   };
 
   // --- Canvas Rendering Logic ---
   const drawToCanvas = async (isExport = false) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
-    // Update canvas size for export
-    if (isExport) {
-        canvas.width = exportSize.w;
-        canvas.height = exportSize.h;
-    } else {
-        // Preview resolution (lower for performance, or standard 1080p)
-        canvas.width = 1920; 
-        canvas.height = 1080;
-    }
+    if (isExport) { canvas.width = exportSize.w; canvas.height = exportSize.h; } 
+    else { canvas.width = 1920; canvas.height = 1080; }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    if (isExport) {
-        await document.fonts.ready;
-    }
-
+    if (isExport) await document.fonts.ready;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Patterns
     const grainPattern = createTexturePattern(ctx, 'grain');
     const paperPattern = createTexturePattern(ctx, 'paper');
     const fabricPattern = createTexturePattern(ctx, 'fabric');
@@ -652,104 +576,95 @@ export default function App() {
     let startY = 150;
     let currentX = startX;
     const lineHeight = 160; 
-    const maxWidth = canvas.width - 100; // Adjust max width based on canvas size
+    const maxWidth = canvas.width - 100;
 
     styles.forEach((style) => {
-      if (style.char === '\n') {
-        currentX = startX;
-        startY += lineHeight;
-        return;
-      }
-
+      if (style.char === '\n') { currentX = startX; startY += lineHeight; return; }
       ctx.save();
       ctx.font = style.fontFamily ? `60px "${style.fontFamily}"` : '60px sans-serif';
       const textMetrics = ctx.measureText(style.char);
-      const charWidth = textMetrics.width;
-      const boxPadding = style.padding * 2;
-      const boxWidth = charWidth + boxPadding;
-      const boxHeight = 110; // Slightly taller for shapes
+      const boxWidth = textMetrics.width + (style.padding * 2);
+      const boxHeight = 110;
       
-      if (currentX + boxWidth > maxWidth) {
-          currentX = startX;
-          startY += lineHeight;
-      }
-
-      if (style.char === ' ') {
-          currentX += boxWidth;
-          ctx.restore();
-          return;
-      }
+      if (currentX + boxWidth > maxWidth) { currentX = startX; startY += lineHeight; }
+      if (style.char === ' ') { currentX += boxWidth; ctx.restore(); return; }
 
       const xPos = currentX + boxWidth / 2;
       const yPos = startY;
-      
       ctx.translate(xPos, yPos);
       ctx.rotate((style.rotation * Math.PI) / 180);
       ctx.scale(style.scale, style.scale);
       
-      // Shadow (Only if not a complex pack shape, usually hard to shadow complex clips cheaply)
-      // We will skip shadow for complex clips for simplicity or fake it
+      // Shadow (Drop shadow behind the paper)
       if (!style.shapePoints) {
-        ctx.shadowColor = "rgba(0,0,0,0.4)";
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 4;
-        ctx.shadowOffsetY = 4;
+        ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 8; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4;
       }
 
-      // --- Shape Clipping ---
+      // Shape Clip & Background
       if (style.shapePoints) {
           ctx.beginPath();
-          const first = style.shapePoints[0];
-          // Map normalized 0-1 points to -w/2 to w/2 coordinate space
           const mapX = (v: number) => (v * boxWidth) - (boxWidth/2);
           const mapY = (v: number) => (v * boxHeight) - (boxHeight/2);
-          
-          ctx.moveTo(mapX(first.x), mapY(first.y));
-          for(let i=1; i<style.shapePoints.length; i++) {
-              ctx.lineTo(mapX(style.shapePoints[i].x), mapY(style.shapePoints[i].y));
-          }
+          ctx.moveTo(mapX(style.shapePoints[0].x), mapY(style.shapePoints[0].y));
+          for(let i=1; i<style.shapePoints.length; i++) ctx.lineTo(mapX(style.shapePoints[i].x), mapY(style.shapePoints[i].y));
           ctx.closePath();
-          ctx.clip(); // Restrict drawing to this shape
+          ctx.clip(); 
       }
-
-      // Background Drawing
       drawPackBackground(ctx, style, boxWidth, boxHeight);
+      ctx.shadowColor = "transparent"; // Reset shadow for text
 
-      // Reset Shadow
-      ctx.shadowColor = "transparent";
-
-      // Texture Overlay
-      let texturePattern = null;
-      let alpha = 1.0;
-      let blendMode: GlobalCompositeOperation = 'multiply';
-
+      // Texture
+      let texturePattern = null; let alpha = 1.0;
       if (style.texture === 'grain') { texturePattern = grainPattern; alpha = 0.2; }
       else if (style.texture === 'paper') { texturePattern = paperPattern; alpha = 0.4; }
       else if (style.texture === 'fabric') { texturePattern = fabricPattern; alpha = 0.3; }
       else if (style.texture === 'grunge') { texturePattern = grungePattern; alpha = 0.5; }
       else if (style.texture === 'concrete') { texturePattern = concretePattern; alpha = 0.3; }
-
       if (texturePattern) {
-          ctx.globalCompositeOperation = blendMode;
-          ctx.fillStyle = texturePattern;
-          ctx.globalAlpha = alpha;
+          ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = texturePattern; ctx.globalAlpha = alpha;
           ctx.fillRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
-          ctx.globalAlpha = 1.0;
-          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0; ctx.globalCompositeOperation = 'source-over';
       }
 
       // Border
-      if (style.borderWidth > 0 && !style.shapePoints) { // Don't border complex shapes for now
-        ctx.lineWidth = style.borderWidth;
-        ctx.strokeStyle = style.borderColor;
-        ctx.strokeRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
+      if (style.borderWidth > 0 && !style.shapePoints) {
+        ctx.lineWidth = style.borderWidth; ctx.strokeStyle = style.borderColor; ctx.strokeRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight);
       }
 
-      // Text
-      ctx.fillStyle = style.color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(style.char, 0, 5);
+      // --- Text Rendering with Effects ---
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      
+      if (style.visualEffect === 'outline') {
+          ctx.strokeStyle = '#000000'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+          ctx.strokeText(style.char, 0, 5);
+          ctx.fillStyle = style.color;
+          ctx.fillText(style.char, 0, 5);
+      } else if (style.visualEffect === '3d') {
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillText(style.char, 4, 9); // Layer 1
+          ctx.fillText(style.char, 2, 7); // Layer 2
+          ctx.fillStyle = style.color;
+          ctx.fillText(style.char, 0, 5);
+      } else if (style.visualEffect === 'neon') {
+          ctx.shadowBlur = 10; ctx.shadowColor = style.color;
+          ctx.fillStyle = style.color;
+          ctx.fillText(style.char, 0, 5);
+          ctx.shadowBlur = 0; // Reset
+      } else {
+          ctx.fillStyle = style.color;
+          ctx.fillText(style.char, 0, 5);
+      }
+
+      // --- Decorations ---
+      if (style.decoration === 'tape') {
+          ctx.fillStyle = style.decorationColor || 'rgba(255,255,255,0.4)';
+          ctx.rotate(random(-0.1, 0.1)); // Slight random tape rotation
+          ctx.fillRect(-boxWidth/2, -boxHeight/2 - 10, boxWidth, 20);
+      } else if (style.decoration === 'pin') {
+          ctx.fillStyle = style.decorationColor || 'silver';
+          ctx.beginPath(); ctx.arc(0, -boxHeight/2 + 5, 4, 0, Math.PI*2); ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+      }
 
       ctx.restore();
       currentX += boxWidth + 15;
@@ -758,7 +673,7 @@ export default function App() {
 
   const handleDownloadPNG = async () => {
     try {
-      await drawToCanvas(true); // Draw with export dimensions
+      await drawToCanvas(true);
       const canvas = canvasRef.current;
       if (canvas) {
         const link = document.createElement('a');
@@ -766,33 +681,16 @@ export default function App() {
         link.href = canvas.toDataURL('image/png');
         link.click();
       }
-    } catch (error) {
-      console.error("Export failed:", error);
-      alert("Export failed. Please try again.");
-    }
+    } catch (error) { console.error("Export failed:", error); alert("Export failed."); }
   };
 
-  useEffect(() => {
-      // Small debounce to avoid flashing updates
-      const t = setTimeout(() => drawToCanvas(false), 500);
-      return () => clearTimeout(t);
-  }, [styles]);
+  useEffect(() => { const t = setTimeout(() => drawToCanvas(false), 500); return () => clearTimeout(t); }, [styles]);
 
   const renderLines = () => {
-      const lines: CharacterStyle[][] = [];
-      let currentLine: CharacterStyle[] = [];
-      styles.forEach(s => {
-          if (s.char === '\n') {
-              lines.push(currentLine);
-              currentLine = [];
-          } else {
-              currentLine.push(s);
-          }
-      });
+      const lines: CharacterStyle[][] = []; let currentLine: CharacterStyle[] = [];
+      styles.forEach(s => { if (s.char === '\n') { lines.push(currentLine); currentLine = []; } else { currentLine.push(s); } });
       if (currentLine.length > 0) lines.push(currentLine);
-      if (lines.length === 0 && styles.length === 0) return [];
-      if (lines.length === 0 && styles.length > 0) return [styles]; 
-      return lines;
+      return lines.length === 0 && styles.length === 0 ? [] : (lines.length === 0 && styles.length > 0 ? [styles] : lines);
   };
   const lines = renderLines();
 
@@ -803,6 +701,24 @@ export default function App() {
     if (tex === 'grunge') return "mix-blend-multiply opacity-50 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/black-felt.png')]";
     if (tex === 'concrete') return "mix-blend-multiply opacity-30 pointer-events-none absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/concrete-wall.png')]";
     return "";
+  };
+
+  // DOM Text Styles for effects
+  const getTextStyle = (s: CharacterStyle): React.CSSProperties => {
+      const base: React.CSSProperties = {
+          fontFamily: s.fontFamily,
+          color: s.color,
+      };
+      if (s.visualEffect === 'outline') {
+          return { ...base, WebkitTextStroke: '2px black' };
+      }
+      if (s.visualEffect === '3d') {
+          return { ...base, textShadow: '2px 2px 0px rgba(0,0,0,0.5), 4px 4px 0px rgba(0,0,0,0.3)' };
+      }
+      if (s.visualEffect === 'neon') {
+          return { ...base, textShadow: `0 0 10px ${s.color}, 0 0 20px ${s.color}` };
+      }
+      return base;
   };
 
   return (
@@ -818,82 +734,40 @@ export default function App() {
           </div>
         </div>
 
-        {/* Export Controls */}
         <div className="flex flex-wrap items-center gap-3 bg-gray-900/50 p-2 rounded-xl border border-gray-700">
            <div className="flex items-center gap-2 border-r border-gray-700 pr-3">
               <span className="text-[10px] text-gray-500 font-bold uppercase">{t.width}</span>
-              <input 
-                 type="number" 
-                 value={exportSize.w} 
-                 onChange={(e) => setExportSize(prev => ({...prev, w: Number(e.target.value)}))}
-                 className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"
-              />
+              <input type="number" value={exportSize.w} onChange={(e) => setExportSize(prev => ({...prev, w: Number(e.target.value)}))} className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"/>
               <span className="text-[10px] text-gray-500 font-bold uppercase">{t.height}</span>
-              <input 
-                 type="number" 
-                 value={exportSize.h} 
-                 onChange={(e) => setExportSize(prev => ({...prev, h: Number(e.target.value)}))}
-                 className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"
-              />
+              <input type="number" value={exportSize.h} onChange={(e) => setExportSize(prev => ({...prev, h: Number(e.target.value)}))} className="w-14 bg-gray-800 border border-gray-600 rounded px-1 text-xs text-white focus:border-yellow-400 outline-none text-center"/>
            </div>
-
            <div className="flex gap-2">
-             <button 
-               onClick={handleDownloadSVG}
-               className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 border border-gray-600"
-             >
-               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-               {t.exportSVG}
+             <button onClick={handleDownloadSVG} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 border border-gray-600">
+               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> {t.exportSVG}
              </button>
-             <button 
-               onClick={handleDownloadPNG}
-               className="bg-white hover:bg-gray-200 text-black px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-             >
-               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-               {t.exportPNG}
+             <button onClick={handleDownloadPNG} className="bg-white hover:bg-gray-200 text-black px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> {t.exportPNG}
              </button>
            </div>
         </div>
-
         <div className="hidden sm:block">
-           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-[10px] text-gray-500 hover:text-gray-300">
-             {t.poweredBy}
-           </a>
+           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-[10px] text-gray-500 hover:text-gray-300">{t.poweredBy}</a>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Sidebar */}
         <aside className="w-full md:w-80 p-6 bg-[#18181b] border-r border-gray-800 overflow-y-auto flex flex-col gap-6">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{t.sourceText}</label>
-            <textarea
-              value={text}
-              onChange={handleTextChange}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none resize-none font-mono text-lg"
-              rows={4}
-              placeholder={t.placeholder}
-            />
+            <textarea value={text} onChange={handleTextChange} className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent outline-none resize-none font-mono text-lg" rows={4} placeholder={t.placeholder}/>
           </div>
-          
-          <StyleControls 
-            config={config} 
-            setConfig={setConfig} 
-            onGenerateAI={handleAIGenerate}
-            isGenerating={isGenerating}
-            onShuffle={handleShuffle}
-            lang={lang}
-            setLang={setLang}
-          />
+          <StyleControls config={config} setConfig={setConfig} onGenerateAI={handleAIGenerate} isGenerating={isGenerating} onShuffle={handleShuffle} lang={lang} setLang={setLang} />
         </aside>
 
-        {/* Canvas Area */}
         <section className="flex-1 relative flex flex-col bg-[#202023] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
           <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
             <div className="flex flex-col justify-center items-center gap-6 p-10 border-2 border-dashed border-gray-700 rounded-xl min-h-[300px]">
-              {lines.length === 0 && (
-                <span className="text-gray-600 font-mono">{t.startTyping}</span>
-              )}
+              {lines.length === 0 && <span className="text-gray-600 font-mono">{t.startTyping}</span>}
               {lines.map((line, lineIndex) => (
                 <div key={lineIndex} className="flex flex-wrap justify-center items-center gap-2">
                     {line.map((style) => (
@@ -901,9 +775,7 @@ export default function App() {
                         key={style.id}
                         className="relative group select-none transition-transform hover:scale-110 duration-200 cursor-grab active:cursor-grabbing"
                         style={{
-                            fontFamily: style.fontFamily,
-                            background: style.backgroundCss || style.backgroundColor, // Use complex CSS if available
-                            color: style.color,
+                            background: style.backgroundCss || style.backgroundColor,
                             transform: `rotate(${style.rotation}deg) scale(${style.scale})`,
                             padding: `${style.padding}px ${style.padding * 1.5}px`,
                             borderRadius: style.borderRadius,
@@ -913,29 +785,32 @@ export default function App() {
                             clipPath: style.shapePoints ? pointsToPolygon(style.shapePoints) : 'none'
                         }}
                         >
-                        <span className="text-5xl md:text-7xl leading-none block relative z-10">
+                        {/* Text Layer with Effects */}
+                        <span className="text-5xl md:text-7xl leading-none block relative z-10" style={getTextStyle(style)}>
                             {style.char === ' ' ? '\u00A0' : style.char}
                         </span>
                         
-                        {style.texture !== 'none' && style.char !== ' ' && (
-                           <div className={getTextureClass(style.texture)}></div>
+                        {/* Tape Decoration */}
+                        {style.decoration === 'tape' && style.char !== ' ' && (
+                            <div className="absolute top-[-10px] left-0 right-0 h-5 transform -rotate-1 opacity-90 pointer-events-none z-20" 
+                                 style={{backgroundColor: style.decorationColor || 'rgba(255,255,255,0.4)'}}></div>
+                        )}
+                         {/* Pin Decoration */}
+                         {style.decoration === 'pin' && style.char !== ' ' && (
+                            <div className="absolute top-1 left-1/2 w-2 h-2 rounded-full border border-gray-500 transform -translate-x-1/2 z-20 shadow-sm" 
+                                 style={{backgroundColor: style.decorationColor || 'silver'}}></div>
                         )}
 
-                        {style.char !== ' ' && (
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
-                        )}
+                        {style.texture !== 'none' && style.char !== ' ' && <div className={getTextureClass(style.texture)}></div>}
+                        {style.char !== ' ' && <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>}
                         </div>
                     ))}
                 </div>
               ))}
             </div>
           </div>
-          
           <canvas ref={canvasRef} width={1920} height={1080} className="hidden" />
-          
-          <div className="bg-[#1A1A1A] text-gray-500 text-xs p-2 text-center border-t border-gray-800">
-             {t.footer}
-          </div>
+          <div className="bg-[#1A1A1A] text-gray-500 text-xs p-2 text-center border-t border-gray-800">{t.footer}</div>
         </section>
       </main>
     </div>
