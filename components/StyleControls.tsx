@@ -135,6 +135,46 @@ const StyleControls: React.FC<StyleControlsProps> = ({
               </div>
             </div>
 
+            {/* Visual Effects Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">{t.effects}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['none', 'shadow', 'outline', 'neon', '3d'] as const).map((effect) => (
+                  <button
+                    key={effect}
+                    onClick={() => handlePresetChange('visualEffect', effect)}
+                    className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center break-words ${
+                      config.visualEffect === effect 
+                        ? 'border-pink-500 bg-gray-700 text-pink-400' 
+                        : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    {t.effectLabels[effect]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Decorations Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-500 uppercase">{t.decorations}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['none', 'tape', 'pin'] as const).map((decor) => (
+                  <button
+                    key={decor}
+                    onClick={() => handlePresetChange('decoration', decor)}
+                    className={`px-1 py-2 rounded-lg text-[10px] font-bold transition-all border text-center break-words ${
+                      config.decoration === decor 
+                        ? 'border-orange-500 bg-gray-700 text-orange-400' 
+                        : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    {t.decorationLabels[decor]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Texture Selector */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-500 uppercase">{t.texture}</label>

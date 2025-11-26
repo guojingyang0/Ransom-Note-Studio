@@ -45,7 +45,7 @@ export interface StylePack {
 }
 
 export interface PresetConfig {
-  mode: 'preset' | 'ai' | 'pack'; // Added 'pack' mode
+  mode: 'preset' | 'ai' | 'pack';
   
   // Pack Mode Settings
   selectedPackId?: string;
@@ -55,6 +55,10 @@ export interface PresetConfig {
   fontVariance: number; 
   colorVibrancy: 'bw' | 'retro' | 'neon' | 'pastel';
   textureMode: 'none' | 'grain' | 'paper' | 'mixed' | 'fabric' | 'grunge' | 'concrete';
+  
+  // New Manual Controls for Effects
+  visualEffect: 'none' | 'shadow' | 'outline' | 'neon' | '3d';
+  decoration: 'none' | 'tape' | 'pin';
   
   // AI Mode Settings (Generated)
   customPalette: ColorPair[];

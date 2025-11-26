@@ -19,6 +19,8 @@ export default function App() {
     fontVariance: 80,
     colorVibrancy: 'retro',
     textureMode: 'grain',
+    visualEffect: 'none',
+    decoration: 'none',
     customPalette: [],
     selectedPackId: 'redacted' // Default pack
   });
@@ -215,17 +217,14 @@ export default function App() {
         borderRadius = random(0, 1) > 0.5 ? '2px' : '0px';
         borderWidth = random(0, 1) > 0.8 ? randomInt(1, 3) : 0;
         
-        // Random Effects based on Chaos
-        if (config.chaosLevel > 30) {
-            const effectRoll = Math.random();
-            if (effectRoll > 0.8) visualEffect = 'shadow';
-            else if (effectRoll > 0.9) visualEffect = 'outline';
-        }
-        if (config.chaosLevel > 60) {
-             const decRoll = Math.random();
-             if (decRoll > 0.85) decoration = 'tape';
-             if (decRoll > 0.95) decoration = 'pin';
-        }
+        // Manual Controls Override Randomness
+        visualEffect = config.visualEffect;
+        decoration = config.decoration;
+        
+        // If Manual is 'none', we might still want chaos randomness? 
+        // No, user likely wants control. If they want chaos, they can toggle effects manually.
+        // For backwards compatibility with "Randomness", maybe we can say if chaos > 80 and manual is 'none', add random?
+        // Let's stick to manual control for better UX as requested.
     }
 
     // Decor colors
@@ -270,7 +269,7 @@ export default function App() {
 
   useEffect(() => {
     regenerateStyles(text);
-  }, [config.chaosLevel, config.colorVibrancy, config.fontVariance, config.mode, config.customPalette, config.textureMode, config.selectedPackId]); 
+  }, [config.chaosLevel, config.colorVibrancy, config.fontVariance, config.mode, config.customPalette, config.textureMode, config.selectedPackId, config.visualEffect, config.decoration]); 
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value; 
@@ -640,14 +639,20 @@ export default function App() {
           ctx.fillStyle = style.color;
           ctx.fillText(style.char, 0, 5);
       } else if (style.visualEffect === '3d') {
-          ctx.fillStyle = 'rgba(0,0,0,0.5)';
-          ctx.fillText(style.char, 4, 9); // Layer 1
-          ctx.fillText(style.char, 2, 7); // Layer 2
+          // Enhanced 3D layers
+          ctx.fillStyle = 'rgba(0,0,0,1)'; 
+          ctx.fillText(style.char, 3, 8); // Deep shadow
+          ctx.fillStyle = '#000000'; 
+          ctx.fillText(style.char, 2, 7); // Hard shadow
+          ctx.fillText(style.char, 1, 6); // Hard shadow
           ctx.fillStyle = style.color;
           ctx.fillText(style.char, 0, 5);
       } else if (style.visualEffect === 'neon') {
-          ctx.shadowBlur = 10; ctx.shadowColor = style.color;
+          // Enhanced Neon
+          ctx.shadowBlur = 15; ctx.shadowColor = style.color;
           ctx.fillStyle = style.color;
+          ctx.fillText(style.char, 0, 5);
+          ctx.shadowBlur = 5; ctx.shadowColor = '#fff'; // Inner bright core
           ctx.fillText(style.char, 0, 5);
           ctx.shadowBlur = 0; // Reset
       } else {
@@ -713,10 +718,21 @@ export default function App() {
           return { ...base, WebkitTextStroke: '2px black' };
       }
       if (s.visualEffect === '3d') {
-          return { ...base, textShadow: '2px 2px 0px rgba(0,0,0,0.5), 4px 4px 0px rgba(0,0,0,0.3)' };
+          // Stronger stacked shadows for retro 3D look
+          return { 
+              ...base, 
+              textShadow: '1px 1px 0px #000, 2px 2px 0px #000, 3px 3px 0px #000, 4px 4px 0px rgba(0,0,0,0.3)' 
+          };
       }
       if (s.visualEffect === 'neon') {
-          return { ...base, textShadow: `0 0 10px ${s.color}, 0 0 20px ${s.color}` };
+           // Multiple layers for glowing effect
+          return { 
+              ...base, 
+              textShadow: `0 0 5px #fff, 0 0 10px #fff, 0 0 20px ${s.color}, 0 0 30px ${s.color}, 0 0 40px ${s.color}` 
+          };
+      }
+      if (s.visualEffect === 'shadow') {
+          return { ...base, textShadow: '4px 4px 0px rgba(0,0,0,0.2)' };
       }
       return base;
   };
@@ -792,13 +808,13 @@ export default function App() {
                         
                         {/* Tape Decoration */}
                         {style.decoration === 'tape' && style.char !== ' ' && (
-                            <div className="absolute top-[-10px] left-0 right-0 h-5 transform -rotate-1 opacity-90 pointer-events-none z-20" 
-                                 style={{backgroundColor: style.decorationColor || 'rgba(255,255,255,0.4)'}}></div>
+                            <div className="absolute top-[-10px] left-0 right-0 h-5 transform -rotate-1 opacity-90 pointer-events-none z-20 mix-blend-multiply" 
+                                 style={{backgroundColor: style.decorationColor || 'rgba(255,255,255,0.4)', boxShadow: '0 1px 2px rgba(0,0,0,0.1)'}}></div>
                         )}
                          {/* Pin Decoration */}
                          {style.decoration === 'pin' && style.char !== ' ' && (
-                            <div className="absolute top-1 left-1/2 w-2 h-2 rounded-full border border-gray-500 transform -translate-x-1/2 z-20 shadow-sm" 
-                                 style={{backgroundColor: style.decorationColor || 'silver'}}></div>
+                            <div className="absolute top-1 left-1/2 w-3 h-3 rounded-full border border-gray-500 transform -translate-x-1/2 z-20 shadow-md bg-gradient-to-br from-gray-100 to-gray-400" 
+                                 ></div>
                         )}
 
                         {style.texture !== 'none' && style.char !== ' ' && <div className={getTextureClass(style.texture)}></div>}

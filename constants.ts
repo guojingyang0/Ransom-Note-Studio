@@ -147,6 +147,8 @@ export const TRANSLATIONS = {
     styleDesc: "Select a palette and adjust parameters.",
     palette: "Palette",
     texture: "Texture",
+    effects: "Visual Effects",
+    decorations: "Decorations",
     chaosLevel: "Chaos Level",
     fontVariance: "Font Variance",
     reshuffle: "Re-Shuffle Layout",
@@ -187,6 +189,18 @@ export const TRANSLATIONS = {
       grunge: "Grunge",
       concrete: "Concrete"
     },
+    effectLabels: {
+        none: "None",
+        shadow: "Shadow",
+        outline: "Outline",
+        neon: "Neon",
+        "3d": "3D"
+    },
+    decorationLabels: {
+        none: "None",
+        tape: "Tape",
+        pin: "Pin"
+    },
     footer: "Drag text characters to rearrange (Visual only) • Characters rendered using CSS & Google Fonts • Export uses HTML5 Canvas",
     startTyping: "Start typing to generate collage..."
   },
@@ -206,6 +220,8 @@ export const TRANSLATIONS = {
     styleDesc: "选择预设配色并微调随机参数。",
     palette: "配色方案",
     texture: "质感",
+    effects: "视觉特效",
+    decorations: "装饰元素",
     chaosLevel: "混乱程度",
     fontVariance: "字体差异",
     reshuffle: "重新随机布局",
@@ -245,6 +261,18 @@ export const TRANSLATIONS = {
       fabric: "布料",
       grunge: "脏迹",
       concrete: "水泥"
+    },
+    effectLabels: {
+        none: "无",
+        shadow: "投影",
+        outline: "描边",
+        neon: "霓虹",
+        "3d": "3D 立体"
+    },
+    decorationLabels: {
+        none: "无",
+        tape: "胶带",
+        pin: "图钉"
     },
     footer: "支持拖拽字符 • 使用谷歌字体渲染 • 导出基于 HTML5 Canvas",
     startTyping: "开始输入以生成拼贴画..."

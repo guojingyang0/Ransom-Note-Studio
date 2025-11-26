@@ -14,10 +14,13 @@ export const generateStyleAndContent = async (promptInput: string, includeText: 
       body: JSON.stringify({ promptInput, includeText }),
     });
 
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+        // This usually happens in AI Studio preview where the route doesn't exist and returns the index.html
+        throw new Error("Proxy route returned HTML, likely not found.");
+    }
+
     if (!response.ok) {
-      // If 404, it likely means the API route doesn't exist (e.g. running in AI Studio preview)
-      // If 500, it might be a server error or missing key on server
-      // We throw to trigger the fallback catch block
       throw new Error(`Proxy failed: ${response.status}`);
     }
 
@@ -36,7 +39,10 @@ export const generateStyleAndContent = async (promptInput: string, includeText: 
     // 2. Init SDK
     // Use process.env.API_KEY as per guidelines. 
     // This assumes the environment is configured to replace this variable during build (e.g. Vite define) or execution.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY || process.env.VITE_API_KEY; // Support Vite prefix
+    if (!apiKey) throw new Error("API Key is missing for client-side fallback. Please set VITE_API_KEY.");
+
+    const ai = new GoogleGenAI({ apiKey });
     
     // 3. Prompt (Synced with api/generate.js)
     const systemPrompt = `
